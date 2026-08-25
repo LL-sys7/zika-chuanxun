@@ -1,0 +1,4201 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🌙 字卡传讯</title>
+
+    <!-- ===== PWA 配置 ===== -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="字卡传讯">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌙</text></svg>">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/service-worker.js').then(function(reg) {
+                    console.log('✅ Service Worker 注册成功');
+                }).catch(function(err) {
+                    console.log('❌ Service Worker 注册失败:', err);
+                });
+            });
+        }
+    </script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        body { background: #e8ddd0; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 10px; }
+        .app { max-width: 420px; width: 100%; height: 780px; background: #f5f0ea; border-radius: 32px; box-shadow: 0 20px 60px rgba(80, 60, 40, 0.2); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+        .top-bar {
+            background: #f5ede6;
+            padding: 8px 12px 6px;
+            border-bottom: 1px solid #e0d3c6;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .top-bar .top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .top-bar .top-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .top-bar .top-left .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #dccfc4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border: 2px solid #b8865b;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .top-bar .top-left .avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .top-bar .top-left .info .name-row { display: flex; align-items: center; gap: 6px; }
+        .top-bar .top-left .info .name { font-size: 16px; font-weight: 600; color: #4d3425; }
+        .top-bar .top-left .info .status {
+            font-size: 11px;
+            color: #b8865b;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .top-bar .top-left .info .status .status-dot {
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .top-bar .top-right {
+            display: flex;
+            gap: 3px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .top-bar .top-right button {
+            background: none;
+            border: none;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 3px 8px;
+            border-radius: 20px;
+            background: rgba(184,134,91,0.08);
+            color: #6a5545;
+            transition: 0.15s;
+        }
+        .top-bar .top-right button:active { background: #e0d3c6; transform: scale(0.92); }
+        .top-bar .top-right .call-btn { background: rgba(76,175,80,0.15); }
+        .top-bar .top-right .call-btn:active { background: rgba(76,175,80,0.3); }
+        .top-bar .top-right .undo-btn { background: rgba(184,134,91,0.15); }
+
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 12px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #f5f0ea;
+            position: relative;
+        }
+        .chat-area::-webkit-scrollbar { width: 3px; }
+        .chat-area::-webkit-scrollbar-thumb { background: #d0c0b0; border-radius: 10px; }
+
+        .msg {
+            max-width: 82%;
+            padding: 8px 14px;
+            border-radius: 16px 16px 16px 4px;
+            background: white;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+            font-size: 14px;
+            line-height: 1.5;
+            color: #2d1f12;
+            align-self: flex-start;
+            animation: pop 0.25s ease;
+            word-break: break-word;
+            border: 1px solid #eee5dc;
+            position: relative;
+            cursor: pointer;
+        }
+        .msg .sender { font-size: 11px; font-weight: 600; color: #b8865b; display: block; margin-bottom: 2px; }
+        .msg .time { font-size: 10px; color: #b8a898; display: block; margin-top: 4px; text-align: right; }
+        .msg .read-status {
+            position: absolute;
+            left: -48px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            color: #b8a898;
+            background: rgba(255,255,255,0.7);
+            padding: 2px 6px;
+            border-radius: 10px;
+            white-space: nowrap;
+        }
+        .msg .read-status.read { color: #4caf50; }
+        .msg .read-status.unread { color: #e74c3c; }
+        .msg.self {
+            align-self: flex-end;
+            background: #dccfc4;
+            border-color: #d0c0b0;
+            border-radius: 16px 16px 4px 16px;
+        }
+        .msg.self .sender { color: #7a5f4a; }
+        .msg.self .read-status { left: -48px; }
+        .msg.system {
+            align-self: center;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            font-size: 12px;
+            color: #b0a090;
+            padding: 4px 10px;
+            max-width: 95%;
+            cursor: default;
+        }
+        .msg.system .time { display: inline-block; margin-top: 2px; font-size: 10px; color: #c4b4a4; text-align: center; }
+        .msg.status-change, .msg.pat-message, .msg.call-message {
+            align-self: center;
+            background: rgba(184,134,91,0.10);
+            border: 1px solid rgba(184,134,91,0.20);
+            border-radius: 30px;
+            padding: 4px 18px;
+            font-size: 12px;
+            color: #8a6a55;
+            max-width: 90%;
+            cursor: default;
+        }
+        .msg.status-change .time, .msg.pat-message .time, .msg.call-message .time { display: inline-block; margin-left: 6px; font-size: 10px; color: #c4b4a4; }
+        .msg .card-item { display: block; padding: 4px 0; }
+        .msg .card-item:not(:last-child) { border-bottom: 1px dashed #eee5dc; margin-bottom: 4px; }
+        .msg img.msg-img { max-width: 180px; max-height: 180px; border-radius: 10px; display: block; margin: 4px 0; border: 1px solid #e0d3c6; }
+        .msg .quote-block {
+            background: rgba(0,0,0,0.05);
+            border-left: 3px solid #b8865b;
+            padding: 4px 10px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #8a7a6a;
+            word-break: break-word;
+        }
+        .msg .quote-block .quote-sender { font-weight: 600; color: #b8865b; }
+        .msg.letter { background: #fcf5e8; border-color: #e8d5b8; }
+        .msg.letter .sender { color: #b8865b; }
+
+        .msg .quote-btn {
+            display: none;
+            position: absolute;
+            top: -12px;
+            right: -12px;
+            background: #b8865b;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            line-height: 24px;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .msg .quote-btn:active { transform: scale(0.85); }
+        .msg:hover .quote-btn { display: block; }
+        .msg .quote-btn.show { display: block; }
+
+        .typing-indicator {
+            align-self: flex-start;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 16px 16px 16px 4px;
+            border: 1px solid #eee5dc;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            color: #8a7a6a;
+            animation: pop 0.25s ease;
+        }
+        .typing-indicator .dots span {
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            background: #b8a898;
+            border-radius: 50%;
+            margin: 0 1px;
+            animation: bounce 1.2s infinite;
+        }
+        .typing-indicator .dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator .dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%,60%,100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
+        @keyframes pop { 0% { opacity: 0; transform: scale(0.92) translateY(6px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+
+        .bottom-area {
+            flex-shrink: 0;
+            padding: 6px 10px 10px;
+            background: #f5f0ea;
+            border-top: 1px solid #e6dbd0;
+        }
+        .quick-add-row {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+        }
+        .quick-add-row button {
+            flex: 1;
+            padding: 4px 0;
+            border-radius: 30px;
+            border: 1px solid #e0d3c6;
+            background: white;
+            color: #6a5545;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            min-width: 0;
+        }
+        .quick-add-row button:active { background: #ede4db; transform: scale(0.94); }
+        .quick-add-row .my-emoji-btn { background: rgba(184,134,91,0.10); border-color: #b8865b; }
+        .quick-add-row .my-emoji-btn:active { background: rgba(184,134,91,0.25); }
+        .quick-add-row .letter-btn { background: rgba(184,134,91,0.10); border-color: #b8865b; }
+        .quick-add-row .letter-btn:active { background: rgba(184,134,91,0.25); }
+
+        .input-row {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            background: white;
+            border-radius: 30px;
+            padding: 2px 4px 2px 12px;
+            border: 1px solid #e0d3c6;
+        }
+        .input-row input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 8px 0;
+            font-size: 14px;
+            outline: none;
+            color: #2d1f12;
+            min-width: 40px;
+        }
+        .input-row input::placeholder { color: #c4b4a4; }
+        .btn-send {
+            background: #b8865b;
+            border: none;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(184,134,91,0.25);
+            white-space: nowrap;
+        }
+        .btn-send:active { transform: scale(0.92); }
+        .action-row {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .action-row button {
+            flex: 1;
+            padding: 4px 0;
+            border-radius: 30px;
+            border: none;
+            background: #ede4db;
+            color: #6a5545;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .action-row button:active { background: #ddd0c4; transform: scale(0.94); }
+
+        .overlay-base {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(40,30,20,0.3);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 32px;
+            z-index: 25;
+            justify-content: center;
+            align-items: flex-end;
+            padding: 16px;
+        }
+        .overlay-base.open { display: flex; }
+
+        .panel-base {
+            background: #fcf9f5;
+            border-radius: 24px 24px 16px 16px;
+            padding: 16px 14px 14px;
+            width: 100%;
+            max-height: 55%;
+            animation: slideUp 0.25s ease;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            overflow-y: auto;
+        }
+        .panel-base .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .panel-base .panel-header h3 { font-size: 16px; color: #4d3425; }
+        .panel-base .panel-header .header-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .panel-base .panel-header .header-actions .select-hint { font-size: 11px; color: #b0a090; }
+        .panel-base .panel-header .clear-btn {
+            font-size: 11px;
+            color: #b8865b;
+            background: none;
+            border: 1px solid #b8865b;
+            border-radius: 20px;
+            padding: 2px 10px;
+            cursor: pointer;
+        }
+        .panel-base .panel-header .clear-btn:active { background: #ede4db; }
+        .panel-base .panel-header button.close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #b0a090;
+            cursor: pointer;
+        }
+        .panel-base .panel-header .delete-selected-btn {
+            font-size: 11px;
+            color: #e74c3c;
+            background: none;
+            border: 1px solid #e74c3c;
+            border-radius: 20px;
+            padding: 2px 10px;
+            cursor: pointer;
+            display: none;
+        }
+        .panel-base .panel-header .delete-selected-btn.show { display: inline-block; }
+        .panel-base .panel-header .delete-selected-btn:active { background: #fde8e8; }
+
+        .emoji-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .emoji-grid .emoji-item {
+            font-size: 26px;
+            padding: 5px 7px;
+            border-radius: 10px;
+            background: white;
+            border: 2px solid #eee5dc;
+            transition: 0.1s;
+            line-height: 1;
+            min-width: 40px;
+            text-align: center;
+            position: relative;
+            cursor: pointer;
+        }
+        .emoji-grid .emoji-item:active { transform: scale(0.92); }
+        .emoji-grid .emoji-item.selected { border-color: #b8865b; background: #f5ede6; }
+        .emoji-grid .emoji-item .del-x {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            font-size: 10px;
+            line-height: 16px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            display: none;
+        }
+        .emoji-grid .emoji-item:hover .del-x { display: block; }
+        .emoji-grid .emoji-item .del-x:active { transform: scale(0.8); }
+        .emoji-grid .emoji-item .check-mark {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: #b8865b;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            line-height: 18px;
+            text-align: center;
+            border: none;
+            display: none;
+        }
+        .emoji-grid .emoji-item.selected .check-mark { display: block; }
+        .emoji-grid .emoji-item.img-item { padding: 3px; }
+        .emoji-grid .emoji-item.img-item img { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; display: block; }
+        .emoji-grid .empty-tip { font-size: 13px; color: #c4b4a4; padding: 6px 0; }
+
+        .card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .card-list .card-group { margin-bottom: 6px; }
+        .card-list .card-group .group-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #b8865b;
+            padding: 4px 0 2px 0;
+            border-bottom: 1px solid #ede4db;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-list .card-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: white;
+            border-radius: 12px;
+            border: 2px solid #f0e8e0;
+            font-size: 13px;
+            color: #2d1f12;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .card-list .card-item-row.selected { border-color: #b8865b; background: #f5ede6; }
+        .card-list .card-item-row .card-text { flex: 1; word-break: break-word; }
+        .card-list .card-item-row .card-category {
+            font-size: 10px;
+            color: #b0a090;
+            background: #ede4db;
+            padding: 0 8px;
+            border-radius: 20px;
+            flex-shrink: 0;
+        }
+        .card-list .card-item-row .send-icon {
+            color: #b8865b;
+            font-size: 14px;
+            cursor: pointer;
+            flex-shrink: 0;
+            padding: 0 4px;
+        }
+        .card-list .card-item-row .send-icon:active { transform: scale(0.8); }
+        .card-list .card-item-row .del-x {
+            color: #b0a090;
+            font-size: 14px;
+            cursor: pointer;
+            flex-shrink: 0;
+            padding: 0 4px;
+        }
+        .card-list .card-item-row .del-x:active { color: #e74c3c; transform: scale(0.8); }
+        .card-list .card-item-row .check-mark {
+            color: #b8865b;
+            font-size: 14px;
+            flex-shrink: 0;
+            display: none;
+        }
+        .card-list .card-item-row.selected .check-mark { display: inline; }
+        .card-list .empty-tip { color: #b0a090; font-size: 13px; padding: 10px 0; text-align: center; }
+
+        .category-manage-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 4px 0;
+        }
+        .category-manage-grid .cat-item {
+            background: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid #e0d3c6;
+            font-size: 13px;
+            color: #4d3425;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .category-manage-grid .cat-item .cat-name { flex: 1; }
+        .category-manage-grid .cat-item .cat-actions { display: flex; gap: 2px; }
+        .category-manage-grid .cat-item .cat-actions button {
+            background: none;
+            border: none;
+            color: #b0a090;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 0 2px;
+        }
+        .category-manage-grid .cat-item .cat-actions button:active { color: #4d3425; }
+        .category-manage-grid .cat-item .cat-actions .del-btn:active { color: #e74c3c; }
+        .category-manage-empty { color: #b0a090; font-size: 13px; padding: 8px 0; text-align: center; }
+        .add-category-row {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .add-category-row input {
+            flex: 1;
+            padding: 5px 10px;
+            border-radius: 20px;
+            border: 1px solid #e0d3c6;
+            font-size: 13px;
+            outline: none;
+        }
+        .add-category-row button {
+            padding: 5px 14px;
+            border-radius: 20px;
+            border: none;
+            background: #b8865b;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .add-category-row button:active { transform: scale(0.94); }
+
+        .overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(40,30,20,0.35);
+            backdrop-filter: blur(4px);
+            border-radius: 32px;
+            z-index: 20;
+            justify-content: center;
+            align-items: flex-end;
+            padding: 16px;
+        }
+        .overlay.open { display: flex; }
+
+        .panel {
+            background: #fcf9f5;
+            border-radius: 24px 24px 16px 16px;
+            padding: 18px 16px 14px;
+            width: 100%;
+            max-height: 75%;
+            overflow-y: auto;
+            animation: slideUp 0.25s ease;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+        @keyframes slideUp { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+        .panel h3 {
+            font-size: 17px;
+            color: #4d3425;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .panel h3 button { background: none; border: none; font-size: 20px; color: #b0a090; cursor: pointer; }
+
+        .letter-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(40,30,20,0.4);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border-radius: 32px;
+            z-index: 25;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+        }
+        .letter-overlay.open { display: flex; }
+        .letter-panel {
+            background: #fcf9f5;
+            border-radius: 28px;
+            padding: 24px 22px;
+            width: 100%;
+            animation: slideUp 0.25s ease;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .letter-panel h3 {
+            font-size: 18px;
+            color: #4d3425;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .letter-panel h3 button {
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: #b0a090;
+            cursor: pointer;
+        }
+        .letter-panel .letter-to { font-size: 13px; color: #b0a090; margin-bottom: 12px; }
+        .letter-panel textarea {
+            width: 100%;
+            height: 120px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            border: 1px solid #e0d3c6;
+            font-size: 15px;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            background: white;
+        }
+        .letter-panel textarea:focus { border-color: #b8865b; }
+        .letter-panel .letter-hint { font-size: 12px; color: #b0a090; margin: 6px 0 12px; }
+        .letter-panel .btn-row { display: flex; gap: 8px; }
+        .letter-panel .btn-row button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .letter-panel .btn-row .btn-cancel { background: #ede4db; color: #6a5545; }
+        .letter-panel .btn-row .btn-send-letter { background: #b8865b; color: white; }
+        .letter-panel .btn-row button:active { transform: scale(0.94); }
+
+        .call-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(20,15,10,0.92);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 32px;
+            z-index: 40;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 30px;
+        }
+        .call-overlay.open { display: flex; }
+        .call-overlay .call-header {
+            position: absolute;
+            top: 16px;
+            right: 20px;
+            display: flex;
+            gap: 12px;
+            z-index: 41;
+        }
+        .call-overlay .call-header button {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: white;
+            font-size: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+        .call-overlay .call-header button:active { background: rgba(255,255,255,0.3); transform: scale(0.92); }
+        .call-overlay .call-header .minimize-btn { background: rgba(255,255,255,0.1); }
+        .call-overlay .call-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #dccfc4;
+            border: 3px solid #b8865b;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        .call-overlay .call-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .call-overlay .call-name { font-size: 22px; font-weight: 600; color: white; margin-bottom: 4px; }
+        .call-overlay .call-status { font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 20px; }
+        .call-overlay .call-timer {
+            font-size: 32px;
+            font-weight: 300;
+            color: white;
+            margin-bottom: 30px;
+            font-variant-numeric: tabular-nums;
+        }
+        .call-overlay .call-actions { display: flex; gap: 30px; }
+        .call-overlay .call-actions button {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .call-overlay .call-actions button:active { transform: scale(0.92); }
+        .call-overlay .call-actions .hangup-btn { background: #e74c3c; color: white; }
+        .call-overlay .call-actions .hangup-btn:active { background: #c0392b; }
+        .call-overlay .call-actions .call-accept-btn { background: #4caf50; color: white; }
+        .call-overlay .call-actions .call-accept-btn:active { background: #388e3c; }
+
+        .call-floating {
+            display: none;
+            position: absolute;
+            bottom: 100px;
+            right: 16px;
+            width: 160px;
+            height: 44px;
+            background: rgba(20,15,10,0.88);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 22px;
+            z-index: 50;
+            flex-direction: row;
+            align-items: center;
+            padding: 0 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.08);
+            touch-action: none;
+            cursor: grab;
+            user-select: none;
+            gap: 8px;
+        }
+        .call-floating.dragging { cursor: grabbing; }
+        .call-floating.show { display: flex; }
+        .call-floating .floating-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #dccfc4;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .call-floating .floating-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .call-floating .floating-info {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 0;
+        }
+        .call-floating .floating-name {
+            font-size: 11px;
+            color: rgba(255,255,255,0.8);
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .call-floating .floating-timer {
+            font-size: 10px;
+            color: rgba(255,255,255,0.4);
+            font-variant-numeric: tabular-nums;
+            line-height: 1.2;
+        }
+        .call-floating .floating-hangup {
+            background: #e74c3c;
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .call-floating .floating-hangup:active { transform: scale(0.88); }
+
+        .mini-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(40,30,20,0.25);
+            border-radius: 32px;
+            z-index: 15;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+        }
+        .mini-overlay.open { display: flex; }
+        .mini-panel {
+            background: #fcf9f5;
+            border-radius: 24px;
+            padding: 20px 18px 16px;
+            width: 100%;
+            animation: slideUp 0.2s ease;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .mini-panel h4 { font-size: 15px; color: #4d3425; margin-bottom: 8px; }
+        .mini-panel textarea {
+            width: 100%;
+            height: 80px;
+            padding: 8px 12px;
+            border-radius: 14px;
+            border: 1px solid #e0d3c6;
+            font-size: 14px;
+            resize: vertical;
+            outline: none;
+            font-family: inherit;
+        }
+        .mini-panel textarea:focus { border-color: #b8865b; }
+        .mini-panel .hint { font-size: 11px; color: #b0a090; margin: 4px 0 8px; }
+        .mini-panel .btn-row { display: flex; gap: 6px; }
+        .mini-panel .btn-row button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .mini-panel .btn-row .btn-cancel { background: #ede4db; color: #6a5545; }
+        .mini-panel .btn-row .btn-confirm { background: #b8865b; color: white; }
+        .mini-panel .btn-row button:active { transform: scale(0.94); }
+        .mini-panel .count-badge { font-size: 12px; color: #b0a090; text-align: right; margin-bottom: 4px; }
+
+        .img-preview-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 4px 0;
+        }
+        .img-preview-row .preview-item { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid #e0d3c6; }
+        .file-input-hidden { display: none; }
+
+        .setting-group { margin-bottom: 14px; }
+        .setting-group .group-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #8a7a6a;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #ede4db;
+            padding-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .setting-group .group-title .clear-all-btn {
+            font-size: 11px;
+            color: #b8865b;
+            background: none;
+            border: 1px solid #b8865b;
+            border-radius: 20px;
+            padding: 2px 10px;
+            cursor: pointer;
+        }
+        .setting-group .group-title .clear-all-btn:active { background: #ede4db; }
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            gap: 8px;
+        }
+        .setting-row label { font-size: 13px; color: #4d3425; flex-shrink: 0; }
+        .setting-row .value-display { font-size: 13px; color: #b8865b; font-weight: 500; min-width: 30px; text-align: center; }
+        .setting-row input[type="range"] { flex: 1; accent-color: #b8865b; height: 4px; cursor: pointer; }
+        .setting-row select {
+            padding: 3px 8px;
+            border-radius: 20px;
+            border: 1px solid #e0d3c6;
+            background: white;
+            font-size: 13px;
+            color: #4d3425;
+            outline: none;
+        }
+        .toggle {
+            width: 40px;
+            height: 22px;
+            background: #ddd0c4;
+            border-radius: 30px;
+            position: relative;
+            cursor: pointer;
+            transition: 0.25s;
+            flex-shrink: 0;
+        }
+        .toggle.on { background: #b8865b; }
+        .toggle .thumb {
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: 0.25s;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+        }
+        .toggle.on .thumb { left: 20px; }
+
+        .mail-item {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 12px;
+            margin-bottom: 4px;
+            border-left: 4px solid #b8865b;
+            font-size: 13px;
+            color: #2d1f12;
+        }
+        .mail-item .mail-sender { font-size: 11px; font-weight: 600; color: #b8865b; }
+        .mail-item .mail-time { font-size: 10px; color: #b8a898; display: block; margin-top: 2px; }
+        .mail-empty { text-align: center; color: #c4b4a4; padding: 16px 0; font-size: 13px; }
+
+        .setting-overlay .panel { max-height: 80%; }
+        .setting-overlay { align-items: center; }
+        .save-btn {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 30px;
+            background: #b8865b;
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+        .save-btn:active { transform: scale(0.96); }
+
+        .status-manage-list, .pat-manage-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 4px 0;
+        }
+        .status-tag, .pat-tag {
+            background: white;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid #e0d3c6;
+            font-size: 12px;
+            color: #4d3425;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .status-tag .del-btn, .pat-tag .del-btn {
+            background: none;
+            border: none;
+            color: #b0a090;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 0 2px;
+        }
+        .status-tag .del-btn:active, .pat-tag .del-btn:active { color: #e74c3c; }
+        .status-empty, .pat-empty {
+            color: #b0a090;
+            font-size: 12px;
+            padding: 4px 0;
+        }
+        .add-status-row, .add-pat-row {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .add-status-row input, .add-pat-row input {
+            flex: 1;
+            padding: 5px 10px;
+            border-radius: 20px;
+            border: 1px solid #e0d3c6;
+            font-size: 13px;
+            outline: none;
+        }
+        .add-status-row button, .add-pat-row button {
+            padding: 5px 14px;
+            border-radius: 20px;
+            border: none;
+            background: #b8865b;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .add-status-row button:active, .add-pat-row button:active { transform: scale(0.94); }
+        .pat-section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #8a7a6a;
+            margin: 6px 0 4px;
+        }
+
+        .io-buttons {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .io-buttons button {
+            flex: 1;
+            padding: 4px 0;
+            border-radius: 20px;
+            border: 1px solid #b8865b;
+            background: none;
+            color: #b8865b;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .io-buttons button:active { background: #ede4db; }
+        .file-input-hidden { display: none; }
+
+        .batch-add-btn {
+            font-size: 11px;
+            color: #b8865b;
+            background: none;
+            border: 1px solid #b8865b;
+            border-radius: 20px;
+            padding: 2px 10px;
+            cursor: pointer;
+        }
+        .batch-add-btn:active { background: #ede4db; }
+
+        .quote-reply-bar {
+            display: none;
+            background: #f5ede6;
+            padding: 4px 12px;
+            border-radius: 20px;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #8a7a6a;
+            border-left: 3px solid #b8865b;
+            align-items: center;
+            gap: 8px;
+        }
+        .quote-reply-bar.show { display: flex; }
+        .quote-reply-bar .quote-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .quote-reply-bar .cancel-quote {
+            background: none;
+            border: none;
+            color: #b0a090;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app" id="app">
+    <div class="top-bar">
+        <div class="top-row">
+            <div class="top-left" id="avatarClick">
+                <div class="avatar" id="avatarDisplay">🌸</div>
+                <div class="info">
+                    <div class="name-row">
+                        <span class="name" id="otherNameDisplay">对方</span>
+                    </div>
+                    <span class="status" id="statusDisplay">
+                        <span class="status-dot"></span>
+                        <span id="statusText">在线</span>
+                    </span>
+                </div>
+            </div>
+            <div class="top-right">
+                <button class="call-btn" id="callBtn">📞</button>
+                <button id="topEmojiBtn">😊</button>
+                <button id="topImageBtn">📷</button>
+                <button id="topCardBtn">📚</button>
+                <button class="undo-btn" id="undoBtn">↩️</button>
+                <button id="exportBtn" style="background:rgba(184,134,91,0.15);">📤</button>
+                <button id="mailBtn">📬</button>
+                <button id="settingBtn">⚙️</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-area" id="chatArea"></div>
+
+    <div class="call-floating" id="callFloating">
+        <div class="floating-avatar" id="floatingAvatar">🌸</div>
+        <div class="floating-info">
+            <div class="floating-name" id="floatingName">对方</div>
+            <div class="floating-timer" id="floatingTimer">00:00</div>
+        </div>
+        <button class="floating-hangup" id="floatingHangup">📞</button>
+    </div>
+
+    <div class="bottom-area">
+        <div class="quick-add-row">
+            <button id="addCardBtn"><span class="icon">📝</span> ＋字卡</button>
+            <button id="addImageBtn"><span class="icon">🖼️</span> ＋图片</button>
+            <button class="my-emoji-btn" id="bottomImageBtn"><span class="icon">📷</span> 图片</button>
+            <button class="my-emoji-btn" id="bottomPatBtn"><span class="icon">👋</span> 拍一拍</button>
+            <button class="letter-btn" id="letterBtn"><span class="icon">✉️</span> 写信</button>
+        </div>
+
+        <div class="input-row">
+            <input type="text" id="msgInput" placeholder="写一句传讯..." maxlength="120">
+            <button class="btn-send" id="sendBtn">发送</button>
+        </div>
+
+        <div class="action-row">
+            <button id="randomBtn">🎴 来几张</button>
+            <button id="clearBtn">🗑️ 清屏</button>
+        </div>
+    </div>
+
+    <div class="quote-reply-bar" id="quoteReplyBar">
+        <span class="quote-text" id="quoteText">引用消息</span>
+        <button class="cancel-quote" id="cancelQuote">✕</button>
+    </div>
+
+    <div class="overlay-base" id="topEmojiOverlay">
+        <div class="panel-base">
+            <div class="panel-header">
+                <h3>😊 对方表情</h3>
+                <div class="header-actions">
+                    <span class="select-hint" id="otherEmojiHint">点击选中</span>
+                    <button class="delete-selected-btn" id="deleteOtherEmojiSelected">🗑️ 删除选中</button>
+                    <button class="clear-btn" id="clearOtherEmojiBtn">🗑️ 清空</button>
+                    <button class="close-btn" id="closeTopEmoji">✕</button>
+                </div>
+            </div>
+            <div class="emoji-grid" id="otherEmojiGrid"></div>
+        </div>
+    </div>
+
+    <div class="overlay-base" id="topImageOverlay">
+        <div class="panel-base">
+            <div class="panel-header">
+                <h3>📷 对方图片</h3>
+                <div class="header-actions">
+                    <span class="select-hint" id="otherImageHint">点击选中</span>
+                    <button class="delete-selected-btn" id="deleteOtherImageSelected">🗑️ 删除选中</button>
+                    <button class="clear-btn" id="clearOtherImageBtn">🗑️ 清空</button>
+                    <button class="close-btn" id="closeTopImage">✕</button>
+                </div>
+            </div>
+            <div class="emoji-grid" id="otherImageGrid"></div>
+        </div>
+    </div>
+
+    <div class="overlay-base" id="topCardOverlay">
+        <div class="panel-base" style="max-height:60%;">
+            <div class="panel-header">
+                <h3>📚 字卡库</h3>
+                <div class="header-actions">
+                    <span class="select-hint" id="cardHint">点击选中</span>
+                    <button class="delete-selected-btn" id="deleteCardSelected">🗑️ 删除选中</button>
+                    <button class="clear-btn" id="clearCardPanelBtn">🗑️ 清空</button>
+                    <button class="close-btn" id="closeTopCard">✕</button>
+                    <button class="batch-add-btn" id="categoryManageBtn">📂 分类管理</button>
+                </div>
+            </div>
+            <div class="card-list" id="cardListPanel"></div>
+            <div class="io-buttons">
+                <button id="exportCardBtn">📤 导出JSON</button>
+                <button id="importCardBtn">📥 导入JSON</button>
+                <input type="file" id="importCardInput" accept=".json" class="file-input-hidden">
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay-base" id="bottomImageOverlay">
+        <div class="panel-base">
+            <div class="panel-header">
+                <h3>📷 我的图片</h3>
+                <div class="header-actions">
+                    <span class="select-hint" id="myImageHint">点击选中</span>
+                    <button class="delete-selected-btn" id="deleteMyImageSelected">🗑️ 删除选中</button>
+                    <button class="clear-btn" id="clearMyImageBtn">🗑️ 清空</button>
+                    <button class="close-btn" id="closeBottomImage">✕</button>
+                </div>
+            </div>
+            <div class="emoji-grid" id="myImageGrid"></div>
+        </div>
+    </div>
+
+    <div class="overlay-base" id="bottomPatOverlay">
+        <div class="panel-base">
+            <div class="panel-header">
+                <h3>👋 我的拍一拍</h3>
+                <div class="header-actions">
+                    <span class="select-hint" id="myPatHint">点击选中</span>
+                    <button class="delete-selected-btn" id="deleteMyPatSelected">🗑️ 删除选中</button>
+                    <button class="clear-btn" id="clearMyPatPanelBtn">🗑️ 清空</button>
+                    <button class="close-btn" id="closeBottomPat">✕</button>
+                    <button class="batch-add-btn" id="batchAddMyPatBtn">📥 批量添加</button>
+                </div>
+            </div>
+            <div class="emoji-grid" id="myPatGrid"></div>
+        </div>
+    </div>
+
+    <div class="overlay-base" id="topPatOverlay">
+        <div class="panel-base">
+            <div class="panel-header">
+                <h3>👋 对方拍一拍</h3>
+                <div class="header-actions">
+                    <span class="select-hint" id="otherPatHint">点击选中</span>
+                    <button class="delete-selected-btn" id="deleteOtherPatSelected">🗑️ 删除选中</button>
+                    <button class="clear-btn" id="clearOtherPatPanelBtn">🗑️ 清空</button>
+                    <button class="close-btn" id="closeTopPat">✕</button>
+                    <button class="batch-add-btn" id="batchAddOtherPatBtn">📥 批量添加</button>
+                </div>
+            </div>
+            <div class="emoji-grid" id="otherPatGrid"></div>
+        </div>
+    </div>
+
+    <div class="overlay" id="mailOverlay">
+        <div class="panel">
+            <h3>📬 所有传讯 <button id="closeMail">✕</button></h3>
+            <div id="mailList"><div class="mail-empty">📭 还没有传讯～</div></div>
+        </div>
+    </div>
+
+    <div class="overlay setting-overlay" id="settingOverlay">
+        <div class="panel">
+            <h3>⚙️ 聊天设置 <button id="closeSetting">✕</button></h3>
+
+            <div class="setting-group">
+                <div class="group-title">⏱️ 节奏</div>
+                <div class="setting-row">
+                    <label>最短等待</label>
+                    <input type="range" id="minWait" min="1" max="10" value="2" step="0.5">
+                    <span class="value-display" id="minWaitDisplay">2s</span>
+                </div>
+                <div class="setting-row">
+                    <label>最长等待</label>
+                    <input type="range" id="maxWait" min="3" max="300" value="6" step="1">
+                    <span class="value-display" id="maxWaitDisplay">6s</span>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <div class="group-title">🖥️ 显示</div>
+                <div class="setting-row">
+                    <label>时间格式</label>
+                    <select id="timeFormat">
+                        <option value="HH:MM">14:05</option>
+                        <option value="HH:MM:SS" selected>14:05:30</option>
+                        <option value="h:MM TT">2:05 PM</option>
+                    </select>
+                </div>
+                <div class="setting-row">
+                    <label>正在输入</label>
+                    <div class="toggle on" id="typingToggle"><div class="thumb"></div></div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <div class="group-title">💭 状态库管理</div>
+                <div class="status-manage-list" id="statusManageList"></div>
+                <div class="add-status-row">
+                    <input type="text" id="newStatusInput" placeholder="输入状态" maxlength="20">
+                    <button id="addStatusBtn">➕</button>
+                </div>
+                <button class="clear-all-btn" id="clearAllStatusBtn" style="margin-top:4px;font-size:11px;color:#b8865b;background:none;border:1px solid #b8865b;border-radius:20px;padding:2px 10px;cursor:pointer;">🗑️ 清空</button>
+            </div>
+
+            <div class="setting-group">
+                <div class="group-title">👋 拍一拍库管理</div>
+                <div class="pat-section-title">🙋 我的拍一拍</div>
+                <div class="pat-manage-list" id="myPatManageList"></div>
+                <div class="add-pat-row">
+                    <input type="text" id="newMyPatInput" placeholder="如：拍了拍对方的头" maxlength="30">
+                    <button id="addMyPatBtn">➕</button>
+                </div>
+                <div class="pat-section-title" style="margin-top:6px;">👤 对方拍一拍</div>
+                <div class="pat-manage-list" id="otherPatManageList"></div>
+                <div class="add-pat-row">
+                    <input type="text" id="newOtherPatInput" placeholder="如：拍了拍你的头" maxlength="30">
+                    <button id="addOtherPatBtn">➕</button>
+                </div>
+                <div style="display:flex;gap:4px;margin-top:6px;">
+                    <button class="clear-all-btn" id="clearAllMyPatBtn" style="flex:1;padding:4px;border:1px solid #b8865b;border-radius:20px;background:none;color:#b8865b;font-size:11px;cursor:pointer;">清空我的</button>
+                    <button class="clear-all-btn" id="clearAllOtherPatBtn" style="flex:1;padding:4px;border:1px solid #b8865b;border-radius:20px;background:none;color:#b8865b;font-size:11px;cursor:pointer;">清空对方</button>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <div class="group-title">🤖 对方主动发送</div>
+                <div class="setting-row">
+                    <label>开启主动发送</label>
+                    <div class="toggle" id="autoSendToggle"><div class="thumb"></div></div>
+                </div>
+                <div class="setting-row">
+                    <label>发送间隔（分钟）</label>
+                    <input type="range" id="autoSendInterval" min="1" max="60" value="5" step="1">
+                    <span class="value-display" id="autoSendIntervalDisplay">5分钟</span>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <div class="group-title">👤 昵称</div>
+                <div class="setting-row">
+                    <label>你的名字</label>
+                    <input type="text" id="selfNameInput" value="我" style="flex:1;padding:4px 10px;border-radius:16px;border:1px solid #e0d3c6;outline:none;font-size:13px;">
+                </div>
+                <div class="setting-row">
+                    <label>对方名字</label>
+                    <input type="text" id="otherNameInput" value="对方" style="flex:1;padding:4px 10px;border-radius:16px;border:1px solid #e0d3c6;outline:none;font-size:13px;">
+                </div>
+            </div>
+
+            <button class="save-btn" id="saveSetting">✅ 保存</button>
+        </div>
+    </div>
+
+    <div class="overlay" id="categoryManageOverlay">
+        <div class="panel" style="max-height:60%;">
+            <h3>📂 分类管理 <button id="closeCategoryManage">✕</button></h3>
+            <div class="category-manage-grid" id="categoryManageGrid"></div>
+            <div class="add-category-row">
+                <input type="text" id="newCategoryInput" placeholder="输入新分类名称">
+                <button id="addCategoryBtn">➕ 添加</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="letter-overlay" id="letterOverlay">
+        <div class="letter-panel">
+            <h3>✉️ 写信 <button id="closeLetter">✕</button></h3>
+            <div class="letter-to" id="letterTo">收件人：对方</div>
+            <textarea id="letterContent" placeholder="写你想说的话..."></textarea>
+            <div class="letter-hint">💡 对方将在 24 小时后用字卡或表情回复你</div>
+            <div class="btn-row">
+                <button class="btn-cancel" id="cancelLetter">取消</button>
+                <button class="btn-send-letter" id="sendLetterBtn">📨 寄出</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="call-overlay" id="callOverlay">
+        <div class="call-header">
+            <button class="minimize-btn" id="minimizeCallBtn">⤓</button>
+        </div>
+        <div class="call-avatar" id="callAvatar">🌸</div>
+        <div class="call-name" id="callName">对方</div>
+        <div class="call-status" id="callStatus">正在呼叫...</div>
+        <div class="call-timer" id="callTimer">00:00</div>
+        <div class="call-actions">
+            <button class="hangup-btn" id="hangupBtn">📞</button>
+        </div>
+    </div>
+
+    <div class="mini-overlay" id="batchPatOverlay">
+        <div class="mini-panel">
+            <h4 id="batchPatTitle">📥 批量添加拍一拍</h4>
+            <textarea id="batchPatInput" placeholder="每行一条拍一拍内容"></textarea>
+            <div class="hint">💡 每行一条，自动去重</div>
+            <div class="btn-row">
+                <button class="btn-cancel" id="cancelBatchPat">取消</button>
+                <button class="btn-confirm" id="confirmBatchPat">✅ 添加</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mini-overlay" id="addCardOverlay">
+        <div class="mini-panel">
+            <h4>📝 添加字卡</h4>
+            <div class="count-badge" id="cardCountDisplay">当前字卡库：0 条</div>
+            <textarea id="newCardInput" placeholder="每行一条，格式：内容|分类"></textarea>
+            <div class="hint">💡 格式：内容|分类（如：🌱 一切都在流动|励志）</div>
+            <div class="btn-row">
+                <button class="btn-cancel" id="cancelAddCard">取消</button>
+                <button class="btn-confirm" id="confirmAddCard">✅ 添加</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mini-overlay" id="addImageOverlay">
+        <div class="mini-panel">
+            <h4>🖼️ 添加图片</h4>
+            <div class="count-badge" id="imageCountDisplay">当前图片：0 张</div>
+            <div style="display:flex;gap:6px;margin-bottom:4px;">
+                <button id="selectImageForMy" style="flex:1;padding:6px;border:2px dashed #b8865b;border-radius:14px;background:transparent;font-size:12px;color:#6a5545;cursor:pointer;">📁 我的</button>
+                <button id="selectImageForOther" style="flex:1;padding:6px;border:2px dashed #b8865b;border-radius:14px;background:transparent;font-size:12px;color:#6a5545;cursor:pointer;">📁 对方</button>
+            </div>
+            <input type="file" id="imageFileInput" accept="image/*" multiple class="file-input-hidden">
+            <div class="img-preview-row" id="imagePreviewRow"></div>
+            <div class="btn-row">
+                <button class="btn-cancel" id="cancelAddImage">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
+</div>
+
+<script>
+    (function() {
+        // =============================================
+        // 数据（从 localStorage 加载或使用默认值）
+        // =============================================
+        function loadData() {
+            var saved = localStorage.getItem('zika_data');
+            if (saved) {
+                try {
+                    var data = JSON.parse(saved);
+                    if (data.cardPool) cardPool = data.cardPool;
+                    if (data.statusPool) statusPool = data.statusPool;
+                    if (data.myPatPool) myPatPool = data.myPatPool;
+                    if (data.otherPatPool) otherPatPool = data.otherPatPool;
+                    if (data.myEmojis) myEmojis = data.myEmojis;
+                    if (data.otherEmojis) otherEmojis = data.otherEmojis;
+                    if (data.myImages) myImages = data.myImages;
+                    if (data.otherImages) otherImages = data.otherImages;
+                    if (data.chatMessages) chatMessages = data.chatMessages;
+                    if (data.mailMessages) mailMessages = data.mailMessages;
+                    if (data.selfName) selfName = data.selfName;
+                    if (data.otherName) otherName = data.otherName;
+                    if (data.minWait !== undefined) minWait = data.minWait;
+                    if (data.maxWait !== undefined) maxWait = data.maxWait;
+                    if (data.timeFormat) timeFormat = data.timeFormat;
+                    if (data.showTyping !== undefined) showTyping = data.showTyping;
+                    if (data.currentStatus) currentStatus = data.currentStatus;
+                    if (data.autoSendEnabled !== undefined) autoSendEnabled = data.autoSendEnabled;
+                    if (data.autoSendInterval !== undefined) autoSendInterval = data.autoSendInterval;
+                    if (data.avatarDataUrl) avatarDataUrl = data.avatarDataUrl;
+                    if (data.undoHistory) undoHistory = data.undoHistory;
+                    return data;
+                } catch(e) { console.log('数据加载失败', e); }
+            }
+            return null;
+        }
+
+        function saveData() {
+            try {
+                var data = {
+                    cardPool: cardPool,
+                    statusPool: statusPool,
+                    myPatPool: myPatPool,
+                    otherPatPool: otherPatPool,
+                    myEmojis: myEmojis,
+                    otherEmojis: otherEmojis,
+                    myImages: myImages,
+                    otherImages: otherImages,
+                    chatMessages: chatMessages,
+                    mailMessages: mailMessages,
+                    selfName: selfName,
+                    otherName: otherName,
+                    minWait: minWait,
+                    maxWait: maxWait,
+                    timeFormat: timeFormat,
+                    showTyping: showTyping,
+                    currentStatus: currentStatus,
+                    autoSendEnabled: autoSendEnabled,
+                    autoSendInterval: autoSendInterval,
+                    avatarDataUrl: avatarDataUrl,
+                    undoHistory: undoHistory.slice(0, 30)
+                };
+                localStorage.setItem('zika_data', JSON.stringify(data));
+            } catch(e) { console.log('保存数据失败', e); }
+        }
+
+        // =============================================
+        // 默认数据
+        // =============================================
+        var cardPool = [
+            { text: "🌱 一切都在流动，一切都在变化。", category: "励志" },
+            { text: "✨ 你比想象中更接近答案。", category: "励志" },
+            { text: "🌸 温柔地对待自己，今日安好。", category: "治愈" },
+            { text: "🔥 勇气不是没有恐惧，而是与之同行。", category: "励志" },
+            { text: "💫 微小而持续的进步，胜过完美。", category: "成长" },
+            { text: "🌙 夜晚是思考的良机，也是休息的恩赐。", category: "治愈" },
+            { text: "🌟 你所寻找的，也在寻找你。", category: "温暖" },
+            { text: "🍀 今天会有意外的惊喜。", category: "温暖" },
+            { text: "🌈 接纳自己的所有面向。", category: "成长" },
+            { text: "💎 你内在的光芒，无人能夺。", category: "励志" },
+            { text: "🌊 像水一样柔软，像山一样坚定。", category: "成长" },
+            { text: "🕊️ 放轻松，一切都在轨道上。", category: "治愈" },
+            { text: "☀️ 新的一天，新的可能。", category: "温暖" },
+            { text: "🌺 你值得被温柔以待。", category: "治愈" }
+        ];
+
+        var statusPool = ["在线", "思考", "听音乐", "阅读", "工作", "学习", "想你", "发呆", "忙碌", "休息", "冥想", "旅行", "健身", "写诗", "画画"];
+
+        var myPatPool = ["拍了拍对方的头", "轻轻拍了拍对方的肩膀", "捏了捏对方的脸", "从背后抱住了对方", "给了对方一个大大的拥抱", "戳了戳对方的腰", "摸了摸对方的头", "揉了揉对方的头发"];
+        var otherPatPool = ["拍了拍你的头说你好可爱", "戳了戳你的腰", "从背后抱住了你", "轻轻拍了拍你的肩膀", "揉了揉你的头发", "给了你一个大大的拥抱", "捏了捏你的脸", "摸了摸你的头"];
+
+        var myEmojis = ['😊', '❤️', '✨', '🌸', '🔥', '🌟'];
+        var otherEmojis = ['😂', '🎉', '💪', '🌹', '🎶', '🌈'];
+        var myImages = [];
+        var otherImages = [];
+
+        var chatMessages = [];
+        var mailMessages = [];
+        var selfName = '我';
+        var otherName = '对方';
+        var minWait = 2;
+        var maxWait = 6;
+        var timeFormat = 'HH:MM:SS';
+        var showTyping = true;
+        var isProcessing = false;
+        var typingElement = null;
+        var imageUploadTarget = 'my';
+        var currentStatus = '在线';
+        var quoteTarget = null;
+        var autoSendEnabled = false;
+        var autoSendInterval = 5;
+        var autoSendTimer = null;
+        var isCalling = false;
+        var callTimerInterval = null;
+        var callSeconds = 0;
+        var avatarDataUrl = null;
+        var undoHistory = [];
+        var MAX_UNDO = 30;
+        var isFloating = false;
+
+        // 加载保存的数据
+        var savedData = loadData();
+        var hasSavedData = savedData !== null;
+
+        // 如果有保存的数据，应用数据
+        if (hasSavedData) {
+            if (savedData.cardPool) cardPool = savedData.cardPool;
+            if (savedData.statusPool) statusPool = savedData.statusPool;
+            if (savedData.myPatPool) myPatPool = savedData.myPatPool;
+            if (savedData.otherPatPool) otherPatPool = savedData.otherPatPool;
+            if (savedData.myEmojis) myEmojis = savedData.myEmojis;
+            if (savedData.otherEmojis) otherEmojis = savedData.otherEmojis;
+            if (savedData.myImages) myImages = savedData.myImages;
+            if (savedData.otherImages) otherImages = savedData.otherImages;
+            if (savedData.chatMessages) chatMessages = savedData.chatMessages;
+            if (savedData.mailMessages) mailMessages = savedData.mailMessages;
+            if (savedData.selfName) selfName = savedData.selfName;
+            if (savedData.otherName) otherName = savedData.otherName;
+            if (savedData.minWait !== undefined) minWait = savedData.minWait;
+            if (savedData.maxWait !== undefined) maxWait = savedData.maxWait;
+            if (savedData.timeFormat) timeFormat = savedData.timeFormat;
+            if (savedData.showTyping !== undefined) showTyping = savedData.showTyping;
+            if (savedData.currentStatus) currentStatus = savedData.currentStatus;
+            if (savedData.autoSendEnabled !== undefined) autoSendEnabled = savedData.autoSendEnabled;
+            if (savedData.autoSendInterval !== undefined) autoSendInterval = savedData.autoSendInterval;
+            if (savedData.avatarDataUrl) avatarDataUrl = savedData.avatarDataUrl;
+            if (savedData.undoHistory) undoHistory = savedData.undoHistory;
+        }
+
+        // =============================================
+        // DOM
+        // =============================================
+        var chatArea = document.getElementById('chatArea');
+        var msgInput = document.getElementById('msgInput');
+        var sendBtn = document.getElementById('sendBtn');
+        var randomBtn = document.getElementById('randomBtn');
+        var mailBtn = document.getElementById('mailBtn');
+        var clearBtn = document.getElementById('clearBtn');
+        var settingBtn = document.getElementById('settingBtn');
+        var settingOverlay = document.getElementById('settingOverlay');
+        var closeSetting = document.getElementById('closeSetting');
+        var saveSetting = document.getElementById('saveSetting');
+        var selfNameInput = document.getElementById('selfNameInput');
+        var otherNameInput = document.getElementById('otherNameInput');
+        var otherNameDisplay = document.getElementById('otherNameDisplay');
+        var statusText = document.getElementById('statusText');
+        var mailOverlay = document.getElementById('mailOverlay');
+        var closeMail = document.getElementById('closeMail');
+        var mailList = document.getElementById('mailList');
+        var undoBtn = document.getElementById('undoBtn');
+        var exportBtn = document.getElementById('exportBtn');
+
+        var topEmojiBtn = document.getElementById('topEmojiBtn');
+        var topImageBtn = document.getElementById('topImageBtn');
+        var topCardBtn = document.getElementById('topCardBtn');
+        var callBtn = document.getElementById('callBtn');
+        var topEmojiOverlay = document.getElementById('topEmojiOverlay');
+        var topImageOverlay = document.getElementById('topImageOverlay');
+        var topCardOverlay = document.getElementById('topCardOverlay');
+        var topPatOverlay = document.getElementById('topPatOverlay');
+        var closeTopEmoji = document.getElementById('closeTopEmoji');
+        var closeTopImage = document.getElementById('closeTopImage');
+        var closeTopCard = document.getElementById('closeTopCard');
+        var closeTopPat = document.getElementById('closeTopPat');
+        var otherEmojiGrid = document.getElementById('otherEmojiGrid');
+        var otherImageGrid = document.getElementById('otherImageGrid');
+        var otherPatGrid = document.getElementById('otherPatGrid');
+        var cardListPanel = document.getElementById('cardListPanel');
+
+        var bottomImageBtn = document.getElementById('bottomImageBtn');
+        var bottomPatBtn = document.getElementById('bottomPatBtn');
+        var letterBtn = document.getElementById('letterBtn');
+        var bottomImageOverlay = document.getElementById('bottomImageOverlay');
+        var bottomPatOverlay = document.getElementById('bottomPatOverlay');
+        var closeBottomImage = document.getElementById('closeBottomImage');
+        var closeBottomPat = document.getElementById('closeBottomPat');
+        var myImageGrid = document.getElementById('myImageGrid');
+        var myPatGrid = document.getElementById('myPatGrid');
+
+        var addCardBtn = document.getElementById('addCardBtn');
+        var addImageBtn = document.getElementById('addImageBtn');
+        var addCardOverlay = document.getElementById('addCardOverlay');
+        var addImageOverlay = document.getElementById('addImageOverlay');
+        var newCardInput = document.getElementById('newCardInput');
+        var cancelAddCard = document.getElementById('cancelAddCard');
+        var confirmAddCard = document.getElementById('confirmAddCard');
+        var cancelAddImage = document.getElementById('cancelAddImage');
+        var cardCountDisplay = document.getElementById('cardCountDisplay');
+        var imageCountDisplay = document.getElementById('imageCountDisplay');
+        var imageFileInput = document.getElementById('imageFileInput');
+        var selectImageForMy = document.getElementById('selectImageForMy');
+        var selectImageForOther = document.getElementById('selectImageForOther');
+        var imagePreviewRow = document.getElementById('imagePreviewRow');
+
+        var minWaitSlider = document.getElementById('minWait');
+        var maxWaitSlider = document.getElementById('maxWait');
+        var minWaitDisplay = document.getElementById('minWaitDisplay');
+        var maxWaitDisplay = document.getElementById('maxWaitDisplay');
+        var timeFormatSelect = document.getElementById('timeFormat');
+        var typingToggle = document.getElementById('typingToggle');
+
+        var statusManageList = document.getElementById('statusManageList');
+        var newStatusInput = document.getElementById('newStatusInput');
+        var addStatusBtn = document.getElementById('addStatusBtn');
+        var clearAllStatusBtn = document.getElementById('clearAllStatusBtn');
+
+        var myPatManageList = document.getElementById('myPatManageList');
+        var otherPatManageList = document.getElementById('otherPatManageList');
+        var newMyPatInput = document.getElementById('newMyPatInput');
+        var newOtherPatInput = document.getElementById('newOtherPatInput');
+        var addMyPatBtn = document.getElementById('addMyPatBtn');
+        var addOtherPatBtn = document.getElementById('addOtherPatBtn');
+        var clearAllMyPatBtn = document.getElementById('clearAllMyPatBtn');
+        var clearAllOtherPatBtn = document.getElementById('clearAllOtherPatBtn');
+
+        var autoSendToggle = document.getElementById('autoSendToggle');
+        var autoSendIntervalSlider = document.getElementById('autoSendInterval');
+        var autoSendIntervalDisplay = document.getElementById('autoSendIntervalDisplay');
+
+        var exportCardBtn = document.getElementById('exportCardBtn');
+        var importCardBtn = document.getElementById('importCardBtn');
+        var importCardInput = document.getElementById('importCardInput');
+        var categoryManageBtn = document.getElementById('categoryManageBtn');
+        var categoryManageOverlay = document.getElementById('categoryManageOverlay');
+        var closeCategoryManage = document.getElementById('closeCategoryManage');
+        var categoryManageGrid = document.getElementById('categoryManageGrid');
+        var newCategoryInput = document.getElementById('newCategoryInput');
+        var addCategoryBtn = document.getElementById('addCategoryBtn');
+
+        var letterOverlay = document.getElementById('letterOverlay');
+        var closeLetter = document.getElementById('closeLetter');
+        var cancelLetter = document.getElementById('cancelLetter');
+        var sendLetterBtn = document.getElementById('sendLetterBtn');
+        var letterContent = document.getElementById('letterContent');
+        var letterTo = document.getElementById('letterTo');
+
+        var callOverlay = document.getElementById('callOverlay');
+        var callAvatar = document.getElementById('callAvatar');
+        var callName = document.getElementById('callName');
+        var callStatus = document.getElementById('callStatus');
+        var callTimer = document.getElementById('callTimer');
+        var hangupBtn = document.getElementById('hangupBtn');
+        var minimizeCallBtn = document.getElementById('minimizeCallBtn');
+
+        var callFloating = document.getElementById('callFloating');
+        var floatingAvatar = document.getElementById('floatingAvatar');
+        var floatingName = document.getElementById('floatingName');
+        var floatingTimer = document.getElementById('floatingTimer');
+        var floatingHangup = document.getElementById('floatingHangup');
+
+        var avatarDisplay = document.getElementById('avatarDisplay');
+        var avatarClick = document.getElementById('avatarClick');
+        var avatarFileInput = document.getElementById('avatarFileInput');
+
+        var batchPatOverlay = document.getElementById('batchPatOverlay');
+        var batchPatInput = document.getElementById('batchPatInput');
+        var cancelBatchPat = document.getElementById('cancelBatchPat');
+        var confirmBatchPat = document.getElementById('confirmBatchPat');
+        var batchPatTitle = document.getElementById('batchPatTitle');
+        var batchAddMyPatBtn = document.getElementById('batchAddMyPatBtn');
+        var batchAddOtherPatBtn = document.getElementById('batchAddOtherPatBtn');
+        var batchTarget = 'my';
+
+        var quoteReplyBar = document.getElementById('quoteReplyBar');
+        var quoteText = document.getElementById('quoteText');
+        var cancelQuote = document.getElementById('cancelQuote');
+
+        // =============================================
+        // 工具函数
+        // =============================================
+        function getTimeStr() {
+            var now = new Date();
+            var h = now.getHours();
+            var m = now.getMinutes().toString().padStart(2,'0');
+            var s = now.getSeconds().toString().padStart(2,'0');
+            switch(timeFormat) {
+                case 'HH:MM': return h.toString().padStart(2,'0') + ':' + m;
+                case 'HH:MM:SS': return h.toString().padStart(2,'0') + ':' + m + ':' + s;
+                case 'h:MM TT': {
+                    var h12 = h % 12 || 12;
+                    return h12 + ':' + m + ' ' + (h >= 12 ? 'PM' : 'AM');
+                }
+                default: return h.toString().padStart(2,'0') + ':' + m + ':' + s;
+            }
+        }
+
+        function getFullTime() {
+            var now = new Date();
+            return now.getFullYear() + '-' + (now.getMonth()+1).toString().padStart(2,'0') + '-' + now.getDate().toString().padStart(2,'0') + ' ' + getTimeStr();
+        }
+
+        function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+        function showConfirmDialog(message, callback) { if (confirm(message)) callback(); }
+
+        // =============================================
+        // 撤回系统
+        // =============================================
+        function pushUndo(action) {
+            undoHistory.push(action);
+            if (undoHistory.length > MAX_UNDO) {
+                undoHistory.shift();
+            }
+            updateUndoBtn();
+            saveData();
+        }
+
+        function updateUndoBtn() {
+            undoBtn.style.opacity = undoHistory.length > 0 ? '1' : '0.4';
+        }
+
+        function undoLastAction() {
+            if (undoHistory.length === 0) {
+                addMessage('📭 没有可撤回的操作', 'self', true);
+                return;
+            }
+            var action = undoHistory.pop();
+            try {
+                if (action.type === 'send_message') {
+                    var msgId = action.msgId;
+                    for (var i = chatMessages.length - 1; i >= 0; i--) {
+                        if (chatMessages[i].id === msgId) {
+                            chatMessages.splice(i, 1);
+                            break;
+                        }
+                    }
+                    var msgEls = chatArea.querySelectorAll('.msg[data-msg-id="' + msgId + '"]');
+                    msgEls.forEach(function(el) { el.remove(); });
+                    for (var j = mailMessages.length - 1; j >= 0; j--) {
+                        if (mailMessages[j].content === action.content && mailMessages[j].sender === selfName) {
+                            mailMessages.splice(j, 1);
+                            break;
+                        }
+                    }
+                    addMessage('↩️ 已撤回一条消息', 'self', true);
+                } else if (action.type === 'add_cards') {
+                    var removed = 0;
+                    action.cards.forEach(function(card) {
+                        for (var k = cardPool.length - 1; k >= 0; k--) {
+                            if (cardPool[k].text === card.text && cardPool[k].category === card.category) {
+                                cardPool.splice(k, 1);
+                                removed++;
+                                break;
+                            }
+                        }
+                    });
+                    addMessage('↩️ 已撤回 ' + removed + ' 张字卡', 'self', true);
+                    updateAll();
+                } else if (action.type === 'clear_cards') {
+                    action.cards.forEach(function(card) {
+                        var exists = cardPool.some(function(c) { return c.text === card.text; });
+                        if (!exists) cardPool.push({ text: card.text, category: card.category });
+                    });
+                    addMessage('↩️ 已恢复清空的 ' + action.cards.length + ' 张字卡', 'self', true);
+                    updateAll();
+                } else if (action.type === 'delete_cards') {
+                    action.cards.forEach(function(card) {
+                        var exists = cardPool.some(function(c) { return c.text === card.text; });
+                        if (!exists) cardPool.push({ text: card.text, category: card.category });
+                    });
+                    addMessage('↩️ 已恢复删除的 ' + action.cards.length + ' 张字卡', 'self', true);
+                    updateAll();
+                } else if (action.type === 'import_cards') {
+                    var removed = 0;
+                    action.cards.forEach(function(card) {
+                        for (var l = cardPool.length - 1; l >= 0; l--) {
+                            if (cardPool[l].text === card.text && cardPool[l].category === card.category) {
+                                cardPool.splice(l, 1);
+                                removed++;
+                                break;
+                            }
+                        }
+                    });
+                    addMessage('↩️ 已移除导入的 ' + removed + ' 张字卡', 'self', true);
+                    updateAll();
+                } else {
+                    addMessage('⚠️ 该操作无法撤回', 'self', true);
+                    undoHistory.push(action);
+                }
+            } catch (e) {
+                addMessage('⚠️ 撤回失败', 'self', true);
+                undoHistory.push(action);
+            }
+            updateUndoBtn();
+            renderMail();
+            saveData();
+        }
+
+        // =============================================
+        // 系统通知
+        // =============================================
+        function showSystemNotification(title, body) {
+            if (!('Notification' in window)) return;
+            if (Notification.permission === 'granted') {
+                var options = {
+                    body: body || '你有一条新消息',
+                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🌙</text></svg>',
+                    vibrate: [200, 100, 200],
+                    requireInteraction: true
+                };
+                var notification = new Notification(title || '💬 字卡传讯', options);
+                notification.onclick = function() {
+                    window.focus();
+                    notification.close();
+                };
+                setTimeout(function() { notification.close(); }, 8000);
+            }
+        }
+
+        // =============================================
+        // 消息相关
+        // =============================================
+        function getLastSelfMessage() {
+            for (var i = chatMessages.length - 1; i >= 0; i--) {
+                if (chatMessages[i].sender === 'self') {
+                    return chatMessages[i];
+                }
+            }
+            return null;
+        }
+
+        function markMessageRead(msgId) {
+            for (var i = 0; i < chatMessages.length; i++) {
+                if (chatMessages[i].id === msgId) {
+                    chatMessages[i].read = true;
+                    break;
+                }
+            }
+            var msgElements = chatArea.querySelectorAll('.msg[data-msg-id]');
+            for (var j = 0; j < msgElements.length; j++) {
+                var el = msgElements[j];
+                var id = el.dataset.msgId;
+                for (var k = 0; k < chatMessages.length; k++) {
+                    if (chatMessages[k].id === id) {
+                        var statusEl = el.querySelector('.read-status');
+                        if (statusEl) {
+                            if (chatMessages[k].read) {
+                                statusEl.textContent = '已读';
+                                statusEl.className = 'read-status read';
+                            } else {
+                                statusEl.textContent = '未读';
+                                statusEl.className = 'read-status unread';
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        function markLastSelfMessageRead() {
+            for (var i = chatMessages.length - 1; i >= 0; i--) {
+                if (chatMessages[i].sender === 'self' && !chatMessages[i].read) {
+                    chatMessages[i].read = true;
+                    var msgElements = chatArea.querySelectorAll('.msg[data-msg-id]');
+                    for (var j = 0; j < msgElements.length; j++) {
+                        var el = msgElements[j];
+                        if (el.dataset.msgId === chatMessages[i].id) {
+                            var statusEl = el.querySelector('.read-status');
+                            if (statusEl) {
+                                statusEl.textContent = '已读';
+                                statusEl.className = 'read-status read';
+                            }
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        // =============================================
+        // 状态
+        // =============================================
+        function getRandomStatus() {
+            if (statusPool.length === 0) return '在线';
+            return statusPool[Math.floor(Math.random() * statusPool.length)];
+        }
+
+        function updateStatusDisplay() {
+            currentStatus = getRandomStatus();
+            statusText.textContent = currentStatus;
+            saveData();
+        }
+
+        function tryTriggerStatusChange() {
+            if (statusPool.length <= 1) return;
+            if (Math.random() < 0.25) {
+                var newStatus;
+                var attempts = 0;
+                do {
+                    newStatus = getRandomStatus();
+                    attempts++;
+                } while (newStatus === currentStatus && attempts < 20 && statusPool.length > 1);
+                if (newStatus !== currentStatus) {
+                    currentStatus = newStatus;
+                    statusText.textContent = currentStatus;
+                    addStatusChangeMessage('🌸 ' + otherName + ' 的状态变为「' + currentStatus + '」');
+                    saveData();
+                }
+            }
+        }
+
+        function addStatusChangeMessage(text) {
+            var div = document.createElement('div');
+            div.className = 'msg status-change';
+            div.innerHTML = text + ' <span class="time">' + getTimeStr() + '</span>';
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // =============================================
+        // 拍一拍
+        // =============================================
+        function getRandomPat(list) {
+            if (!list || list.length === 0) return null;
+            return list[Math.floor(Math.random() * list.length)];
+        }
+
+        function sendTopPat() {
+            if (otherPatPool.length === 0) {
+                addMessage('📭 对方拍一拍库为空，请先添加内容', 'self', true);
+                return;
+            }
+            var content = getRandomPat(otherPatPool);
+            var displayText = '👋 ' + otherName + ' ' + content;
+            addPatMessage(displayText);
+        }
+
+        function sendBottomPatFromGrid(content) {
+            if (!content) return;
+            var displayText = '👋 ' + selfName + ' ' + content;
+            addPatMessage(displayText);
+            closeBottomPatFn();
+        }
+
+        function addPatMessage(text) {
+            var div = document.createElement('div');
+            div.className = 'msg pat-message';
+            var timeStr = getTimeStr();
+            div.innerHTML = text + ' <span class="time">' + timeStr + '</span>';
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            var fullTime = getFullTime();
+            mailMessages.push({ sender: '系统', content: '💬 ' + text, time: fullTime });
+            showSystemNotification('👋 拍一拍', text);
+            saveData();
+        }
+
+        // =============================================
+        // 对方表情
+        // =============================================
+        function getOtherEmojiList() {
+            var list = [];
+            otherEmojis.forEach(function(e) { list.push({ type: 'text', value: e }); });
+            otherImages.forEach(function(img) { list.push({ type: 'image', dataUrl: img.dataUrl }); });
+            return list;
+        }
+
+        function getRandomOtherEmoji() {
+            var list = getOtherEmojiList();
+            if (list.length === 0) return null;
+            return list[Math.floor(Math.random() * list.length)];
+        }
+
+        // =============================================
+        // 对方回复
+        // =============================================
+        function sendOtherReply() {
+            var hasCards = cardPool.length > 0;
+            var hasEmojis = getOtherEmojiList().length > 0;
+            var hasPat = otherPatPool.length > 0;
+
+            if (!hasCards && !hasEmojis && !hasPat) {
+                addMessage('📭 字卡库、对方表情库、对方拍一拍库都为空，请先添加内容', 'self', true);
+                return;
+            }
+
+            markLastSelfMessageRead();
+
+            var shouldQuote = Math.random() < 0.28;
+            var quoteContent = null;
+            var quoteSender = null;
+            if (shouldQuote) {
+                var lastSelf = getLastSelfMessage();
+                if (lastSelf) {
+                    quoteContent = lastSelf.content;
+                    quoteSender = selfName;
+                } else {
+                    shouldQuote = false;
+                }
+            }
+
+            var availableModes = [];
+            if (hasCards) availableModes.push(0);
+            if (hasEmojis) availableModes.push(1);
+            if (hasCards && hasEmojis) availableModes.push(2);
+            if (hasPat) availableModes.push(3);
+
+            if (availableModes.length === 0) {
+                addMessage('📭 没有可用的回复内容', 'self', true);
+                return;
+            }
+
+            var mode = availableModes[Math.floor(Math.random() * availableModes.length)];
+            var contentParts = [];
+
+            if (mode === 0) {
+                var cards = getRandomCards();
+                cards.forEach(function(c) { contentParts.push({ type: 'card', value: c.text }); });
+            } else if (mode === 1) {
+                var emoji = getRandomOtherEmoji();
+                if (emoji) {
+                    contentParts.push({ type: emoji.type, value: emoji.type === 'text' ? emoji.value : emoji.dataUrl });
+                } else {
+                    contentParts.push({ type: 'text', value: '😊' });
+                }
+            } else if (mode === 2) {
+                var emoji2 = getRandomOtherEmoji();
+                if (emoji2) {
+                    contentParts.push({ type: emoji2.type, value: emoji2.type === 'text' ? emoji2.value : emoji2.dataUrl });
+                }
+                var cards2 = getRandomCards(1, 2);
+                cards2.forEach(function(c) { contentParts.push({ type: 'card', value: c.text }); });
+                if (contentParts.length === 0) {
+                    contentParts.push({ type: 'text', value: '🌸 你好呀' });
+                }
+            } else if (mode === 3) {
+                var patContent = getRandomPat(otherPatPool);
+                if (patContent) {
+                    var displayText = '👋 ' + otherName + ' ' + patContent;
+                    addPatMessage(displayText);
+                }
+                return;
+            }
+
+            var timeStr = getTimeStr();
+            var fullTime = getFullTime();
+            var senderDisplay = otherName;
+            var div = document.createElement('div');
+            div.className = 'msg';
+
+            var quoteHtml = '';
+            if (shouldQuote && quoteContent) {
+                quoteHtml = '<div class="quote-block"><span class="quote-sender">' + quoteSender + '：</span>' + quoteContent + '</div>';
+            }
+
+            var contentHtml = '<span class="sender">' + senderDisplay + '</span>' + quoteHtml;
+            for (var i = 0; i < contentParts.length; i++) {
+                var part = contentParts[i];
+                if (part.type === 'text') contentHtml += part.value;
+                else if (part.type === 'card') contentHtml += '<span class="card-item">' + part.value + '</span>';
+                else if (part.type === 'image') contentHtml += '<img src="' + part.value + '" class="msg-img">';
+            }
+            contentHtml += '<span class="time">' + timeStr + '</span>';
+            div.innerHTML = contentHtml;
+
+            var mailContent = '';
+            if (shouldQuote && quoteContent) {
+                mailContent = '「' + quoteSender + '：' + quoteContent + '」 ';
+            }
+            for (var j = 0; j < contentParts.length; j++) {
+                var p = contentParts[j];
+                if (p.type === 'text') {
+                    mailMessages.push({ sender: senderDisplay, content: (mailContent + p.value), time: fullTime });
+                } else if (p.type === 'card') {
+                    mailMessages.push({ sender: senderDisplay, content: (mailContent + p.value), time: fullTime });
+                } else if (p.type === 'image') {
+                    mailMessages.push({ sender: senderDisplay, content: (mailContent + '[图片]'), time: fullTime });
+                }
+            }
+
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            showSystemNotification('💬 ' + senderDisplay, contentParts.map(function(p){return p.value;}).join(' '));
+            saveData();
+        }
+
+        // =============================================
+        // 字卡（等概率抽取）
+        // =============================================
+        function getRandomCards(min, max) {
+            if (cardPool.length === 0) return [];
+            var count;
+            if (min !== undefined && max !== undefined) {
+                count = Math.floor(Math.random() * (max - min + 1)) + min;
+            } else {
+                count = Math.floor(Math.random() * 3) + 1;
+            }
+            count = Math.min(count, cardPool.length);
+            var poolCopy = cardPool.slice();
+            var result = [];
+            for (var i = 0; i < count; i++) {
+                var idx = Math.floor(Math.random() * poolCopy.length);
+                result.push(poolCopy[idx]);
+                poolCopy.splice(idx, 1);
+            }
+            return result;
+        }
+
+        // =============================================
+        // 消息点击引用
+        // =============================================
+        function setupQuoteButton(msgElement, sender, content) {
+            var oldBtn = msgElement.querySelector('.quote-btn');
+            if (oldBtn) oldBtn.remove();
+
+            var btn = document.createElement('button');
+            btn.className = 'quote-btn';
+            btn.textContent = '💬';
+            btn.title = '引用回复';
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                quoteTarget = { sender: sender, content: content };
+                quoteText.textContent = '回复 ' + sender + '：' + content.substring(0, 30) + (content.length > 30 ? '...' : '');
+                quoteReplyBar.classList.add('show');
+                document.querySelectorAll('.msg .quote-btn').forEach(function(b) { b.classList.remove('show'); });
+                msgInput.focus();
+            });
+            msgElement.appendChild(btn);
+
+            msgElement.addEventListener('click', function(e) {
+                if (e.target.classList.contains('quote-btn')) return;
+                if (msgElement.classList.contains('system')) return;
+                if (msgElement.classList.contains('status-change')) return;
+                if (msgElement.classList.contains('pat-message')) return;
+                if (msgElement.classList.contains('call-message')) return;
+
+                quoteTarget = { sender: sender, content: content };
+                quoteText.textContent = '回复 ' + sender + '：' + content.substring(0, 30) + (content.length > 30 ? '...' : '');
+                quoteReplyBar.classList.add('show');
+                document.querySelectorAll('.msg .quote-btn').forEach(function(b) { b.classList.remove('show'); });
+                msgInput.focus();
+            });
+        }
+
+        // =============================================
+        // 发送消息
+        // =============================================
+        function sendMessage() {
+            var text = msgInput.value.trim();
+            if (!text || isProcessing) return;
+            isProcessing = true;
+
+            var msgId = generateId();
+            var timeStr = getTimeStr();
+            var fullTime = getFullTime();
+            var senderDisplay = selfName;
+
+            var quoteHtml = '';
+            var quoteContent = '';
+            if (quoteTarget) {
+                quoteHtml = '<div class="quote-block"><span class="quote-sender">' + quoteTarget.sender + '：</span>' + quoteTarget.content + '</div>';
+                quoteContent = '「' + quoteTarget.sender + '：' + quoteTarget.content + '」\n';
+                quoteTarget = null;
+                quoteReplyBar.classList.remove('show');
+            }
+
+            chatMessages.push({
+                id: msgId,
+                sender: 'self',
+                content: text,
+                time: fullTime,
+                read: false,
+                quote: quoteContent
+            });
+
+            pushUndo({
+                type: 'send_message',
+                msgId: msgId,
+                content: text
+            });
+
+            var div = document.createElement('div');
+            div.className = 'msg self';
+            div.dataset.msgId = msgId;
+            var contentHtml = '<span class="sender">' + senderDisplay + '</span>' + quoteHtml + text.trim() + '<span class="time">' + timeStr + '</span>';
+            var statusHtml = '<span class="read-status unread">未读</span>';
+            div.innerHTML = statusHtml + contentHtml;
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+
+            msgInput.value = '';
+            mailMessages.push({ sender: senderDisplay, content: (quoteContent ? quoteContent : '') + text.trim(), time: fullTime });
+            renderMail();
+
+            tryTriggerStatusChange();
+            showTypingIndicator();
+
+            var delay = minWait * 1000 + Math.random() * (maxWait - minWait) * 1000;
+            setTimeout(function() {
+                hideTypingIndicator();
+                sendOtherReply();
+                renderMail();
+                isProcessing = false;
+                saveData();
+            }, delay);
+            saveData();
+        }
+
+        // =============================================
+        // 通用消息（关键修复：确保所有消息数据结构完整）
+        // =============================================
+        function addMessage(text, sender, isSystem, imageDataUrl) {
+            if (!text && !imageDataUrl) return;
+            var div = document.createElement('div');
+            div.className = 'msg';
+            if (sender === 'self') div.classList.add('self');
+
+            var timeStr = getTimeStr();
+            var fullTime = getFullTime();
+            var senderDisplay = sender === 'self' ? selfName : otherName;
+
+            var contentHtml = '';
+            if (imageDataUrl) {
+                contentHtml = '<img src="' + imageDataUrl + '" class="msg-img">';
+                if (text) contentHtml += '<br>' + text;
+            } else {
+                contentHtml = text.trim();
+            }
+
+            if (isSystem) {
+                div.classList.add('system');
+                div.innerHTML = text.trim() + ' <span class="time">' + timeStr + '</span>';
+            } else {
+                var isRead = sender === 'other' ? true : false;
+                var msgId = generateId();
+
+                // 构建完整的消息对象，确保所有字段齐全
+                var msgObj = {
+                    id: msgId,
+                    sender: sender,
+                    content: text.trim(),
+                    time: fullTime,
+                    read: isRead,
+                    imageDataUrl: imageDataUrl || null,
+                    quote: '' // 保留字段
+                };
+                chatMessages.push(msgObj);
+
+                div.dataset.msgId = msgId;
+                var statusText = isRead ? '已读' : '未读';
+                var statusClass = isRead ? 'read' : 'unread';
+                var statusHtml = '<span class="read-status ' + statusClass + '">' + statusText + '</span>';
+                div.innerHTML = statusHtml + '<span class="sender">' + senderDisplay + '</span>' + contentHtml + '<span class="time">' + timeStr + '</span>';
+                
+                var content = imageDataUrl ? '[图片]' : text.trim();
+                mailMessages.push({ sender: senderDisplay, content: content, time: fullTime });
+                
+                if (sender === 'other') {
+                    showSystemNotification('💬 ' + senderDisplay, text.trim());
+                }
+            }
+
+            if (!isSystem) {
+                var senderName = sender === 'self' ? selfName : otherName;
+                var msgContent = text.trim();
+                setupQuoteButton(div, senderName, msgContent);
+            }
+
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            saveData();
+            return div;
+        }
+
+        // =============================================
+        // 导出聊天记录（先下载，再提示）
+        // =============================================
+        function exportChatHistory() {
+            if (chatMessages.length === 0) {
+                alert('📭 暂无聊天记录可导出');
+                return;
+            }
+
+            var text = '📝 字卡传讯 - 聊天记录\n';
+            text += '导出时间：' + getFullTime() + '\n';
+            text += '='.repeat(40) + '\n\n';
+
+            for (var i = 0; i < chatMessages.length; i++) {
+                var msg = chatMessages[i];
+                var sender = msg.sender === 'self' ? selfName : otherName;
+                var time = msg.time || '未知时间';
+                var content = msg.content || '';
+                var status = msg.read ? '已读' : '未读';
+                var quote = msg.quote || '';
+                var isImage = msg.imageDataUrl ? true : false;
+                // 检查是否包含表情
+                var emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
+                var hasEmoji = emojiRegex.test(content);
+                var emojiTag = hasEmoji ? ' [含表情]' : '';
+                text += '[' + time + '] ' + sender + '：' + (quote ? quote : '') + content + (isImage ? ' [图片]' : '') + emojiTag + ' (' + status + ')\n';
+            }
+
+            text += '\n' + '='.repeat(40) + '\n';
+            text += '共 ' + chatMessages.length + ' 条消息\n';
+
+            // 附加表情包数据
+            text += '\n--- 表情包数据 ---\n';
+            text += '我的表情：' + myEmojis.join(' ') + '\n';
+            text += '对方表情：' + otherEmojis.join(' ') + '\n';
+            text += '我的图片：' + myImages.length + ' 张\n';
+            text += '对方图片：' + otherImages.length + ' 张\n';
+
+            // 创建下载
+            var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            var dateStr = new Date().toISOString().slice(0, 10);
+            a.download = '字卡传讯_聊天记录_' + dateStr + '.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            // 延迟释放 URL 并提示成功
+            setTimeout(function() {
+                URL.revokeObjectURL(url);
+                addMessage('✅ 聊天记录已导出（共 ' + chatMessages.length + ' 条消息，含文字、表情、图片）', 'self', true);
+            }, 500);
+        }
+
+        // =============================================
+        // 打字指示
+        // =============================================
+        function showTypingIndicator() {
+            if (!showTyping) return;
+            hideTypingIndicator();
+            typingElement = document.createElement('div');
+            typingElement.className = 'typing-indicator';
+            typingElement.innerHTML = '<span>' + otherName + ' 正在输入</span><span class="dots"><span></span><span></span><span></span></span>';
+            chatArea.appendChild(typingElement);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            if (typingElement) { typingElement.remove(); typingElement = null; }
+        }
+
+        // =============================================
+        // 来几张
+        // =============================================
+        function sendRandomCards() {
+            if (isProcessing) return;
+            if (cardPool.length === 0) {
+                addMessage('📭 字卡库为空，请先添加字卡', 'self', true);
+                return;
+            }
+            isProcessing = true;
+            showTypingIndicator();
+            var delay = minWait * 1000 + Math.random() * (maxWait - minWait) * 1000;
+            setTimeout(function() {
+                hideTypingIndicator();
+                markLastSelfMessageRead();
+
+                var shouldQuote = Math.random() < 0.28;
+                var quoteContent = null;
+                var quoteSender = null;
+                if (shouldQuote) {
+                    var lastSelf = getLastSelfMessage();
+                    if (lastSelf) {
+                        quoteContent = lastSelf.content;
+                        quoteSender = selfName;
+                    } else {
+                        shouldQuote = false;
+                    }
+                }
+
+                var hasCards = cardPool.length > 0;
+                var hasEmojis = getOtherEmojiList().length > 0;
+                var availableModes = [];
+                if (hasCards) availableModes.push(0);
+                if (hasCards && hasEmojis) availableModes.push(2);
+                if (availableModes.length === 0) {
+                    addMessage('📭 没有可用的回复内容', 'self', true);
+                    isProcessing = false;
+                    return;
+                }
+                var mode = availableModes[Math.floor(Math.random() * availableModes.length)];
+                var contentParts = [];
+                if (mode === 0) {
+                    var cards = getRandomCards();
+                    cards.forEach(function(c) { contentParts.push({ type: 'card', value: c.text }); });
+                } else {
+                    var emoji = getRandomOtherEmoji();
+                    if (emoji) {
+                        contentParts.push({ type: emoji.type, value: emoji.type === 'text' ? emoji.value : emoji.dataUrl });
+                    }
+                    var cards2 = getRandomCards(1, 2);
+                    cards2.forEach(function(c) { contentParts.push({ type: 'card', value: c.text }); });
+                    if (contentParts.length === 0) {
+                        contentParts.push({ type: 'text', value: '🌸' });
+                    }
+                }
+
+                var timeStr = getTimeStr();
+                var fullTime = getFullTime();
+                var senderDisplay = otherName;
+                var div = document.createElement('div');
+                div.className = 'msg';
+
+                var quoteHtml = '';
+                if (shouldQuote && quoteContent) {
+                    quoteHtml = '<div class="quote-block"><span class="quote-sender">' + quoteSender + '：</span>' + quoteContent + '</div>';
+                }
+
+                var contentHtml = '<span class="sender">' + senderDisplay + '</span>' + quoteHtml;
+                for (var i = 0; i < contentParts.length; i++) {
+                    var part = contentParts[i];
+                    if (part.type === 'text') contentHtml += part.value;
+                    else if (part.type === 'card') contentHtml += '<span class="card-item">' + part.value + '</span>';
+                    else if (part.type === 'image') contentHtml += '<img src="' + part.value + '" class="msg-img">';
+                }
+                contentHtml += '<span class="time">' + timeStr + '</span>';
+                div.innerHTML = contentHtml;
+
+                var mailContent = '';
+                if (shouldQuote && quoteContent) {
+                    mailContent = '「' + quoteSender + '：' + quoteContent + '」 ';
+                }
+                for (var j = 0; j < contentParts.length; j++) {
+                    var p = contentParts[j];
+                    if (p.type === 'text') {
+                        mailMessages.push({ sender: senderDisplay, content: (mailContent + p.value), time: fullTime });
+                    } else if (p.type === 'card') {
+                        mailMessages.push({ sender: senderDisplay, content: (mailContent + p.value), time: fullTime });
+                    } else if (p.type === 'image') {
+                        mailMessages.push({ sender: senderDisplay, content: (mailContent + '[图片]'), time: fullTime });
+                    }
+                }
+                chatArea.appendChild(div);
+                chatArea.scrollTop = chatArea.scrollHeight;
+                renderMail();
+                showSystemNotification('💬 ' + senderDisplay, contentParts.map(function(p){return p.value;}).join(' '));
+                isProcessing = false;
+                saveData();
+            }, delay);
+        }
+
+        // =============================================
+        // 对方主动发送
+        // =============================================
+        function startAutoSend() {
+            if (autoSendTimer) {
+                clearInterval(autoSendTimer);
+                autoSendTimer = null;
+            }
+            var intervalMs = autoSendInterval * 60 * 1000;
+            autoSendTimer = setInterval(function() {
+                if (!autoSendEnabled) return;
+                if (isProcessing) return;
+
+                var shouldQuote = Math.random() < 0.30;
+                var quoteContent = null;
+                var quoteSender = null;
+                if (shouldQuote) {
+                    var lastSelf = getLastSelfMessage();
+                    if (lastSelf) {
+                        quoteContent = lastSelf.content;
+                        quoteSender = selfName;
+                    } else {
+                        shouldQuote = false;
+                    }
+                }
+
+                isProcessing = true;
+                showTypingIndicator();
+                var delay = 1000 + Math.random() * 3000;
+                setTimeout(function() {
+                    hideTypingIndicator();
+                    var activeMessages = [
+                        '在吗？', '今天怎么样？', '想你了', '在干嘛呢？',
+                        '最近还好吗？', '有没有想我？', '我来了', '嗨～',
+                        '你在忙吗？', '今天天气真好', '晚上好呀'
+                    ];
+                    var msg = activeMessages[Math.floor(Math.random() * activeMessages.length)];
+                    var fullTime = getFullTime();
+                    var msgId = generateId();
+
+                    var quoteHtml = '';
+                    var mailQuote = '';
+                    if (shouldQuote && quoteContent) {
+                        quoteHtml = '<div class="quote-block"><span class="quote-sender">' + quoteSender + '：</span>' + quoteContent + '</div>';
+                        mailQuote = '「' + quoteSender + '：' + quoteContent + '」 ';
+                    }
+
+                    chatMessages.push({
+                        id: msgId,
+                        sender: 'other',
+                        content: msg,
+                        time: fullTime,
+                        read: true
+                    });
+                    var div = document.createElement('div');
+                    div.className = 'msg';
+                    div.dataset.msgId = msgId;
+                    var statusHtml = '<span class="read-status read">已读</span>';
+                    div.innerHTML = statusHtml + '<span class="sender">' + otherName + '</span>' + quoteHtml + msg + '<span class="time">' + getTimeStr() + '</span>';
+                    chatArea.appendChild(div);
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    mailMessages.push({ sender: otherName, content: (mailQuote + msg), time: fullTime });
+                    renderMail();
+                    showSystemNotification('💬 ' + otherName, msg);
+
+                    setTimeout(function() {
+                        sendOtherReply();
+                        renderMail();
+                        isProcessing = false;
+                        saveData();
+                    }, 500 + Math.random() * 1000);
+                    saveData();
+                }, delay);
+            }, intervalMs);
+        }
+
+        // =============================================
+        // 写信功能
+        // =============================================
+        function sendLetter() {
+            var content = letterContent.value.trim();
+            if (!content) {
+                alert('请写点内容再寄出');
+                return;
+            }
+            if (content.length > 500) {
+                alert('内容太长，请控制在500字以内');
+                return;
+            }
+
+            var timeStr = getTimeStr();
+            var fullTime = getFullTime();
+
+            var div = document.createElement('div');
+            div.className = 'msg self letter';
+            div.innerHTML = '<span class="sender">✉️ ' + selfName + '</span>📨 寄出了一封信：<br>' + content + '<span class="time">' + timeStr + '</span>';
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            mailMessages.push({ sender: selfName + '（信）', content: content, time: fullTime });
+
+            var hintDiv = document.createElement('div');
+            hintDiv.className = 'msg system';
+            hintDiv.innerHTML = '📬 信件已寄出，对方将在24小时后回复 <span class="time">' + timeStr + '</span>';
+            chatArea.appendChild(hintDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            saveData();
+
+            setTimeout(function() {
+                var hasCards = cardPool.length > 0;
+                var hasEmojis = getOtherEmojiList().length > 0;
+
+                if (!hasCards && !hasEmojis) {
+                    var noReplyDiv = document.createElement('div');
+                    noReplyDiv.className = 'msg system';
+                    noReplyDiv.innerHTML = '📬 对方想回复你，但字卡库和表情库都为空，请先添加内容 <span class="time">' + getTimeStr() + '</span>';
+                    chatArea.appendChild(noReplyDiv);
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    return;
+                }
+
+                var replyType = 'card';
+                if (hasCards && hasEmojis) {
+                    replyType = Math.random() < 0.5 ? 'card' : 'emoji';
+                } else if (hasEmojis) {
+                    replyType = 'emoji';
+                }
+
+                var replyContent = '';
+                var replyHtml = '';
+
+                if (replyType === 'card') {
+                    var card = getRandomCards(1, 1);
+                    if (card.length > 0) {
+                        replyContent = card[0].text;
+                        replyHtml = '<span class="card-item">' + replyContent + '</span>';
+                    } else {
+                        replyContent = '🌸 一切安好';
+                        replyHtml = replyContent;
+                    }
+                } else {
+                    var emoji = getRandomOtherEmoji();
+                    if (emoji) {
+                        if (emoji.type === 'text') {
+                            replyContent = emoji.value;
+                            replyHtml = emoji.value;
+                        } else {
+                            replyContent = '[图片]';
+                            replyHtml = '<img src="' + emoji.dataUrl + '" class="msg-img">';
+                        }
+                    } else {
+                        replyContent = '😊';
+                        replyHtml = '😊';
+                    }
+                }
+
+                var replyTime = getTimeStr();
+                var replyFullTime = getFullTime();
+
+                var replyDiv = document.createElement('div');
+                replyDiv.className = 'msg letter';
+                replyDiv.innerHTML = '<span class="sender">📬 ' + otherName + ' 回复了你的信</span>' + replyHtml + '<span class="time">' + replyTime + '</span>';
+                chatArea.appendChild(replyDiv);
+                chatArea.scrollTop = chatArea.scrollHeight;
+                mailMessages.push({ sender: otherName + '（回信）', content: replyContent, time: replyFullTime });
+                showSystemNotification('📬 ' + otherName + ' 回复了你的信', replyContent);
+                renderMail();
+                saveData();
+            }, 24 * 60 * 60 * 1000);
+
+            closeLetterOverlay();
+            letterContent.value = '';
+        }
+
+        function openLetterOverlay() {
+            letterTo.textContent = '收件人：' + otherName;
+            letterOverlay.classList.add('open');
+        }
+
+        function closeLetterOverlay() {
+            letterOverlay.classList.remove('open');
+        }
+
+        // =============================================
+        // 通话功能
+        // =============================================
+        function startCall() {
+            if (isCalling) return;
+            isCalling = true;
+            isFloating = false;
+            callOverlay.classList.add('open');
+            callFloating.classList.remove('show');
+
+            updateCallAvatar();
+            callName.textContent = otherName;
+            callStatus.textContent = '正在呼叫...';
+            callTimer.textContent = '00:00';
+            callTimer.style.display = 'block';
+            callSeconds = 0;
+
+            var result = Math.random();
+            var delay = 2000 + Math.random() * 3000;
+
+            setTimeout(function() {
+                if (!isCalling) return;
+
+                if (result < 0.33) {
+                    callStatus.textContent = '通话中';
+                    callTimer.style.display = 'block';
+                    startCallTimer();
+                    showSystemNotification('📞 通话已接通', '与 ' + otherName + ' 的通话已接通');
+                } else if (result < 0.66) {
+                    callStatus.textContent = '对方未接听';
+                    callTimer.style.display = 'none';
+                    var msgDiv = document.createElement('div');
+                    msgDiv.className = 'msg call-message';
+                    msgDiv.innerHTML = '📞 ' + otherName + ' 未接听你的来电 <span class="time">' + getTimeStr() + '</span>';
+                    chatArea.appendChild(msgDiv);
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    saveData();
+                    setTimeout(function() {
+                        if (isCalling) endCall();
+                    }, 1500);
+                } else {
+                    callStatus.textContent = '对方拒绝了通话';
+                    callTimer.style.display = 'none';
+                    var msgDiv2 = document.createElement('div');
+                    msgDiv2.className = 'msg call-message';
+                    msgDiv2.innerHTML = '📞 ' + otherName + ' 拒绝了你的来电 <span class="time">' + getTimeStr() + '</span>';
+                    chatArea.appendChild(msgDiv2);
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                    saveData();
+                    setTimeout(function() {
+                        if (isCalling) endCall();
+                    }, 1500);
+                }
+            }, delay);
+        }
+
+        function startCallTimer() {
+            if (callTimerInterval) {
+                clearInterval(callTimerInterval);
+                callTimerInterval = null;
+            }
+            callTimerInterval = setInterval(function() {
+                callSeconds++;
+                var mins = Math.floor(callSeconds / 60).toString().padStart(2, '0');
+                var secs = (callSeconds % 60).toString().padStart(2, '0');
+                callTimer.textContent = mins + ':' + secs;
+                floatingTimer.textContent = mins + ':' + secs;
+            }, 1000);
+        }
+
+        function endCall() {
+            isCalling = false;
+            isFloating = false;
+            if (callTimerInterval) {
+                clearInterval(callTimerInterval);
+                callTimerInterval = null;
+            }
+            callOverlay.classList.remove('open');
+            callFloating.classList.remove('show');
+            callTimer.style.display = 'block';
+            if (callSeconds > 0) {
+                var mins = Math.floor(callSeconds / 60).toString().padStart(2, '0');
+                var secs = (callSeconds % 60).toString().padStart(2, '0');
+                var msgDiv = document.createElement('div');
+                msgDiv.className = 'msg call-message';
+                msgDiv.innerHTML = '📞 与 ' + otherName + ' 的通话已结束（' + mins + ':' + secs + '）<span class="time">' + getTimeStr() + '</span>';
+                chatArea.appendChild(msgDiv);
+                chatArea.scrollTop = chatArea.scrollHeight;
+                saveData();
+            }
+            callSeconds = 0;
+        }
+
+        function minimizeCall() {
+            if (!isCalling) return;
+            isFloating = true;
+            callOverlay.classList.remove('open');
+            callFloating.classList.add('show');
+
+            var avatarEl = document.querySelector('.top-bar .top-left .avatar');
+            if (avatarEl) {
+                var img = avatarEl.querySelector('img');
+                if (img) {
+                    floatingAvatar.innerHTML = '<img src="' + img.src + '">';
+                } else {
+                    floatingAvatar.textContent = avatarEl.textContent || '🌸';
+                }
+            }
+            floatingName.textContent = otherName;
+            var mins = Math.floor(callSeconds / 60).toString().padStart(2, '0');
+            var secs = (callSeconds % 60).toString().padStart(2, '0');
+            floatingTimer.textContent = mins + ':' + secs;
+        }
+
+        function restoreCallFromFloating() {
+            if (!isFloating) return;
+            isFloating = false;
+            callFloating.classList.remove('show');
+            callOverlay.classList.add('open');
+            callStatus.textContent = '通话中';
+            var mins = Math.floor(callSeconds / 60).toString().padStart(2, '0');
+            var secs = (callSeconds % 60).toString().padStart(2, '0');
+            callTimer.textContent = mins + ':' + secs;
+            callTimer.style.display = 'block';
+        }
+
+        function updateCallAvatar() {
+            var avatarEl = document.querySelector('.top-bar .top-left .avatar');
+            if (avatarEl) {
+                var img = avatarEl.querySelector('img');
+                if (img) {
+                    callAvatar.innerHTML = '<img src="' + img.src + '">';
+                } else {
+                    callAvatar.textContent = avatarEl.textContent || '🌸';
+                }
+            }
+        }
+
+        function startIncomingCallCheck() {
+            setInterval(function() {
+                if (isCalling) return;
+                if (Math.random() < 0.001) {
+                    incomingCall();
+                }
+            }, 30000);
+        }
+
+        function incomingCall() {
+            isCalling = true;
+            isFloating = false;
+            callOverlay.classList.add('open');
+            callFloating.classList.remove('show');
+
+            updateCallAvatar();
+            callName.textContent = otherName;
+            callStatus.textContent = otherName + ' 正在来电...';
+            callTimer.textContent = '00:00';
+            callTimer.style.display = 'none';
+            callSeconds = 0;
+
+            var msgDiv = document.createElement('div');
+            msgDiv.className = 'msg call-message';
+            msgDiv.innerHTML = '📞 ' + otherName + ' 正在给你打电话... <span class="time">' + getTimeStr() + '</span>';
+            chatArea.appendChild(msgDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            saveData();
+
+            var actions = document.querySelector('.call-actions');
+            actions.innerHTML = '';
+            var acceptBtn = document.createElement('button');
+            acceptBtn.className = 'call-accept-btn';
+            acceptBtn.textContent = '📞';
+            acceptBtn.addEventListener('click', function() {
+                callStatus.textContent = '通话中';
+                callTimer.style.display = 'block';
+                startCallTimer();
+                actions.innerHTML = '';
+                var hangup = document.createElement('button');
+                hangup.className = 'hangup-btn';
+                hangup.textContent = '📞';
+                hangup.addEventListener('click', function() {
+                    endCall();
+                });
+                actions.appendChild(hangup);
+                showSystemNotification('📞 通话已接通', '与 ' + otherName + ' 的通话已接通');
+            });
+            var rejectBtn = document.createElement('button');
+            rejectBtn.className = 'hangup-btn';
+            rejectBtn.textContent = '✕';
+            rejectBtn.style.background = '#e74c3c';
+            rejectBtn.style.color = 'white';
+            rejectBtn.addEventListener('click', function() {
+                callStatus.textContent = '已拒绝';
+                setTimeout(function() {
+                    endCall();
+                }, 1000);
+            });
+            actions.appendChild(acceptBtn);
+            actions.appendChild(rejectBtn);
+        }
+
+        // 浮窗拖拽
+        function setupFloatingDrag() {
+            var isDragging = false;
+            var startX, startY, origX, origY;
+
+            callFloating.addEventListener('touchstart', function(e) {
+                if (e.target.classList.contains('floating-hangup')) return;
+                var touch = e.touches[0];
+                startX = touch.clientX;
+                startY = touch.clientY;
+                var rect = callFloating.getBoundingClientRect();
+                origX = rect.left;
+                origY = rect.top;
+                isDragging = true;
+                callFloating.classList.add('dragging');
+            }, { passive: true });
+
+            document.addEventListener('touchmove', function(e) {
+                if (!isDragging) return;
+                var touch = e.touches[0];
+                var dx = touch.clientX - startX;
+                var dy = touch.clientY - startY;
+                var newX = origX + dx;
+                var newY = origY + dy;
+                var maxX = window.innerWidth - 160;
+                var maxY = window.innerHeight - 60;
+                newX = Math.max(0, Math.min(newX, maxX));
+                newY = Math.max(0, Math.min(newY, maxY));
+                callFloating.style.left = newX + 'px';
+                callFloating.style.top = newY + 'px';
+                callFloating.style.right = 'auto';
+                callFloating.style.bottom = 'auto';
+            }, { passive: true });
+
+            document.addEventListener('touchend', function() {
+                if (isDragging) {
+                    isDragging = false;
+                    callFloating.classList.remove('dragging');
+                }
+            }, { passive: true });
+
+            callFloating.addEventListener('click', function(e) {
+                if (e.target.classList.contains('floating-hangup')) return;
+                if (!isDragging) {
+                    restoreCallFromFloating();
+                }
+            });
+        }
+
+        // =============================================
+        // 头像上传
+        // =============================================
+        function handleAvatarUpload(file) {
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var dataUrl = e.target.result;
+                avatarDataUrl = dataUrl;
+                var avatarEl = document.querySelector('.top-bar .top-left .avatar');
+                avatarEl.innerHTML = '<img src="' + dataUrl + '">';
+                updateCallAvatar();
+                addMessage('🖼️ 对方头像已更新', 'self', true);
+                saveData();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // =============================================
+        // 渲染面板
+        // =============================================
+        function updateAll() {
+            var totalImages = myImages.length + otherImages.length;
+            cardCountDisplay.textContent = '当前字卡库：' + cardPool.length + ' 条';
+            imageCountDisplay.textContent = '当前图片：' + totalImages + ' 张';
+            renderAllPanels();
+            renderStatusManage();
+            renderPatManage();
+            saveData();
+        }
+
+        function renderAllPanels() {
+            renderGridWithSelection(otherEmojiGrid, otherEmojis, otherImages, 'otherEmoji', function(item, type) {
+                if (!isProcessing) {
+                    addMessage(item, 'other', false);
+                    renderMail();
+                    closeTopEmojiFn();
+                }
+            });
+
+            renderGridWithSelection(otherImageGrid, [], otherImages, 'otherImage', function(item, type) {
+                if (!isProcessing) {
+                    addMessage('', 'other', false, item);
+                    renderMail();
+                    closeTopImageFn();
+                }
+            });
+
+            renderGridWithSelection(myImageGrid, [], myImages, 'myImage', function(item, type) {
+                if (!isProcessing) {
+                    isProcessing = true;
+                    addMessage('', 'self', false, item);
+                    renderMail();
+                    showTypingIndicator();
+                    var delay = minWait * 1000 + Math.random() * (maxWait - minWait) * 1000;
+                    setTimeout(function() {
+                        hideTypingIndicator();
+                        sendOtherReply();
+                        renderMail();
+                        isProcessing = false;
+                        saveData();
+                    }, delay);
+                    closeBottomImageFn();
+                }
+            });
+
+            renderPatGridWithSelection(myPatGrid, myPatPool, 'myPat', function(item) {
+                sendBottomPatFromGrid(item);
+            });
+
+            renderPatGridWithSelection(otherPatGrid, otherPatPool, 'otherPat', function(item) {
+                sendTopPat();
+                closeTopPatFn();
+            });
+
+            renderCardListWithSelection();
+        }
+
+        function renderGridWithSelection(container, textList, imageList, prefix, onClick) {
+            container.innerHTML = '';
+
+            textList.forEach(function(item, idx) {
+                var span = document.createElement('span');
+                span.className = 'emoji-item';
+                span.textContent = item;
+                span.dataset.index = idx;
+                span.dataset.type = 'text';
+                span.dataset.value = item;
+                var check = document.createElement('span');
+                check.className = 'check-mark';
+                check.textContent = '✓';
+                span.appendChild(check);
+                span.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    this.classList.toggle('selected');
+                    updateDeleteBtnVisibility(prefix);
+                });
+                span.addEventListener('dblclick', function(e) {
+                    e.stopPropagation();
+                    onClick(item, 'text');
+                });
+                container.appendChild(span);
+            });
+
+            imageList.forEach(function(img, idx) {
+                var div = document.createElement('span');
+                div.className = 'emoji-item img-item';
+                var imgEl = document.createElement('img');
+                imgEl.src = img.dataUrl;
+                div.appendChild(imgEl);
+                div.dataset.index = idx;
+                div.dataset.type = 'image';
+                div.dataset.value = img.dataUrl;
+                var check = document.createElement('span');
+                check.className = 'check-mark';
+                check.textContent = '✓';
+                div.appendChild(check);
+                div.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    this.classList.toggle('selected');
+                    updateDeleteBtnVisibility(prefix);
+                });
+                div.addEventListener('dblclick', function(e) {
+                    e.stopPropagation();
+                    onClick(img.dataUrl, 'image');
+                });
+                container.appendChild(div);
+            });
+
+            if (textList.length === 0 && imageList.length === 0) {
+                var empty = document.createElement('span');
+                empty.className = 'empty-tip';
+                empty.textContent = '暂无内容';
+                container.appendChild(empty);
+            }
+
+            container._textList = textList;
+            container._imageList = imageList;
+            container._prefix = prefix;
+
+            updateDeleteBtnVisibility(prefix);
+        }
+
+        function renderPatGridWithSelection(container, list, prefix, onClick) {
+            container.innerHTML = '';
+            list.forEach(function(item, idx) {
+                var span = document.createElement('span');
+                span.className = 'emoji-item';
+                span.textContent = item;
+                span.style.fontSize = '13px';
+                span.style.padding = '4px 12px';
+                span.style.minWidth = 'auto';
+                span.dataset.index = idx;
+                span.dataset.value = item;
+                var check = document.createElement('span');
+                check.className = 'check-mark';
+                check.textContent = '✓';
+                span.appendChild(check);
+                span.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    this.classList.toggle('selected');
+                    updateDeleteBtnVisibility(prefix);
+                });
+                span.addEventListener('dblclick', function(e) {
+                    e.stopPropagation();
+                    onClick(item);
+                });
+                container.appendChild(span);
+            });
+            if (list.length === 0) {
+                var empty = document.createElement('span');
+                empty.className = 'empty-tip';
+                empty.textContent = '暂无内容';
+                container.appendChild(empty);
+            }
+            container._list = list;
+            container._prefix = prefix;
+            updateDeleteBtnVisibility(prefix);
+        }
+
+        function renderCardListWithSelection() {
+            cardListPanel.innerHTML = '';
+            if (cardPool.length === 0) {
+                cardListPanel.innerHTML = '<div class="empty-tip">📭 字卡库为空</div>';
+                updateDeleteBtnVisibility('card');
+                return;
+            }
+
+            var groups = {};
+            cardPool.forEach(function(card, idx) {
+                var cat = card.category || '默认';
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push({ card: card, idx: idx });
+            });
+
+            var sortedCategories = Object.keys(groups).sort();
+
+            sortedCategories.forEach(function(cat) {
+                var groupDiv = document.createElement('div');
+                groupDiv.className = 'card-group';
+
+                var titleDiv = document.createElement('div');
+                titleDiv.className = 'group-title';
+                titleDiv.textContent = '📂 ' + cat + '（' + groups[cat].length + '张）';
+                groupDiv.appendChild(titleDiv);
+
+                groups[cat].forEach(function(item) {
+                    var div = document.createElement('div');
+                    div.className = 'card-item-row';
+                    div.dataset.index = item.idx;
+                    var check = document.createElement('span');
+                    check.className = 'check-mark';
+                    check.textContent = '✓';
+                    var textSpan = document.createElement('span');
+                    textSpan.className = 'card-text';
+                    textSpan.textContent = item.card.text;
+                    var catTag = document.createElement('span');
+                    catTag.className = 'card-category';
+                    catTag.textContent = cat;
+                    var del = document.createElement('span');
+                    del.className = 'del-x';
+                    del.textContent = '✕';
+                    del.addEventListener('click', function(ev) {
+                        ev.stopPropagation();
+                        var idx = parseInt(this.parentElement.dataset.index);
+                        var deletedCard = { text: cardPool[idx].text, category: cardPool[idx].category };
+                        showConfirmDialog('确定要删除这张字卡吗？\n「' + cardPool[idx].text + '」', function() {
+                            cardPool.splice(idx, 1);
+                            pushUndo({ type: 'delete_cards', cards: [deletedCard] });
+                            updateAll();
+                        });
+                    });
+                    var sendIcon = document.createElement('span');
+                    sendIcon.className = 'send-icon';
+                    sendIcon.textContent = '➤';
+                    sendIcon.addEventListener('click', function(ev) {
+                        ev.stopPropagation();
+                        var idx = parseInt(this.parentElement.dataset.index);
+                        if (!isProcessing) {
+                            isProcessing = true;
+                            addMessage(cardPool[idx].text, 'other', false);
+                            renderMail();
+                            closeTopCardFn();
+                            isProcessing = false;
+                            saveData();
+                        }
+                    });
+                    div.appendChild(check);
+                    div.appendChild(textSpan);
+                    div.appendChild(catTag);
+                    div.appendChild(del);
+                    div.appendChild(sendIcon);
+                    div.addEventListener('click', function(e) {
+                        if (e.target.classList.contains('del-x') || e.target.classList.contains('send-icon')) return;
+                        this.classList.toggle('selected');
+                        updateDeleteBtnVisibility('card');
+                    });
+                    groupDiv.appendChild(div);
+                });
+
+                cardListPanel.appendChild(groupDiv);
+            });
+
+            cardListPanel._list = cardPool;
+            cardListPanel._prefix = 'card';
+            updateDeleteBtnVisibility('card');
+        }
+
+        function updateDeleteBtnVisibility(prefix) {
+            var btnMap = {
+                'otherEmoji': document.getElementById('deleteOtherEmojiSelected'),
+                'otherImage': document.getElementById('deleteOtherImageSelected'),
+                'card': document.getElementById('deleteCardSelected'),
+                'myImage': document.getElementById('deleteMyImageSelected'),
+                'myPat': document.getElementById('deleteMyPatSelected'),
+                'otherPat': document.getElementById('deleteOtherPatSelected')
+            };
+            var hintMap = {
+                'otherEmoji': document.getElementById('otherEmojiHint'),
+                'otherImage': document.getElementById('otherImageHint'),
+                'card': document.getElementById('cardHint'),
+                'myImage': document.getElementById('myImageHint'),
+                'myPat': document.getElementById('myPatHint'),
+                'otherPat': document.getElementById('otherPatHint')
+            };
+
+            var btn = btnMap[prefix];
+            var hint = hintMap[prefix];
+            if (!btn) return;
+
+            var container = null;
+            if (prefix === 'card') {
+                container = cardListPanel;
+            } else if (prefix === 'myPat') {
+                container = myPatGrid;
+            } else if (prefix === 'otherPat') {
+                container = otherPatGrid;
+            } else if (prefix === 'otherEmoji') {
+                container = otherEmojiGrid;
+            } else if (prefix === 'otherImage') {
+                container = otherImageGrid;
+            } else if (prefix === 'myImage') {
+                container = myImageGrid;
+            }
+
+            if (!container) return;
+
+            var selected = container.querySelectorAll('.selected');
+            if (selected.length > 0) {
+                btn.classList.add('show');
+                if (hint) hint.textContent = '已选 ' + selected.length + ' 项';
+            } else {
+                btn.classList.remove('show');
+                if (hint) hint.textContent = '点击选中';
+            }
+        }
+
+        function deleteSelectedItems(prefix) {
+            var container = null;
+            var list = null;
+            var isCard = false;
+            var isPat = false;
+            var isImage = false;
+
+            if (prefix === 'card') {
+                container = cardListPanel;
+                list = cardPool;
+                isCard = true;
+            } else if (prefix === 'myPat') {
+                container = myPatGrid;
+                list = myPatPool;
+                isPat = true;
+            } else if (prefix === 'otherPat') {
+                container = otherPatGrid;
+                list = otherPatPool;
+                isPat = true;
+            } else if (prefix === 'otherEmoji') {
+                container = otherEmojiGrid;
+                isImage = true;
+            } else if (prefix === 'otherImage') {
+                container = otherImageGrid;
+                isImage = true;
+            } else if (prefix === 'myImage') {
+                container = myImageGrid;
+                isImage = true;
+            }
+
+            if (!container) return;
+
+            var selected = container.querySelectorAll('.selected');
+            if (selected.length === 0) return;
+
+            var deletedItems = [];
+            selected.forEach(function(el) {
+                var idx = parseInt(el.dataset.index);
+                if (!isNaN(idx)) {
+                    if (isCard && cardPool[idx]) {
+                        deletedItems.push({ text: cardPool[idx].text, category: cardPool[idx].category });
+                    } else if (isPat && list[idx]) {
+                        deletedItems.push(list[idx]);
+                    }
+                }
+            });
+
+            showConfirmDialog('确定要删除选中的 ' + selected.length + ' 项吗？', function() {
+                var indices = [];
+                selected.forEach(function(el) {
+                    var idx = parseInt(el.dataset.index);
+                    if (!isNaN(idx)) indices.push(idx);
+                });
+                indices.sort(function(a, b) { return b - a; });
+
+                if (isCard) {
+                    indices.forEach(function(idx) { cardPool.splice(idx, 1); });
+                    pushUndo({ type: 'delete_cards', cards: deletedItems });
+                } else if (isPat) {
+                    indices.forEach(function(idx) { list.splice(idx, 1); });
+                } else if (isImage) {
+                    var textIndices = [];
+                    var imageIndices = [];
+                    selected.forEach(function(el) {
+                        var idx = parseInt(el.dataset.index);
+                        var type = el.dataset.type;
+                        if (type === 'text') textIndices.push(idx);
+                        else if (type === 'image') imageIndices.push(idx);
+                    });
+                    textIndices.sort(function(a, b) { return b - a; });
+                    imageIndices.sort(function(a, b) { return b - a; });
+                    if (prefix === 'otherEmoji') {
+                        textIndices.forEach(function(idx) { otherEmojis.splice(idx, 1); });
+                        imageIndices.forEach(function(idx) { otherImages.splice(idx, 1); });
+                    } else if (prefix === 'myImage') {
+                        imageIndices.forEach(function(idx) { myImages.splice(idx, 1); });
+                    } else if (prefix === 'otherImage') {
+                        imageIndices.forEach(function(idx) { otherImages.splice(idx, 1); });
+                    }
+                }
+
+                updateAll();
+                addMessage('🗑️ 已删除选中的 ' + selected.length + ' 项', 'self', true);
+                saveData();
+            });
+        }
+
+        // =============================================
+        // 面板清空
+        // =============================================
+        function clearOtherEmoji() {
+            if (otherEmojis.length === 0 && otherImages.length === 0) { alert('对方表情库已经为空'); return; }
+            showConfirmDialog('⚠️ 确定要清空全部对方表情吗？', function() {
+                otherEmojis = [];
+                otherImages = [];
+                updateAll();
+                addMessage('🗑️ 已清空对方表情库', 'self', true);
+                saveData();
+            });
+        }
+
+        function clearOtherImage() {
+            if (otherImages.length === 0) { alert('对方图片库已经为空'); return; }
+            showConfirmDialog('⚠️ 确定要清空全部对方图片吗？', function() {
+                otherImages = [];
+                updateAll();
+                addMessage('🗑️ 已清空对方图片库', 'self', true);
+                saveData();
+            });
+        }
+
+        function clearMyImage() {
+            if (myImages.length === 0) { alert('我的图片库已经为空'); return; }
+            showConfirmDialog('⚠️ 确定要清空全部我的图片吗？', function() {
+                myImages = [];
+                updateAll();
+                addMessage('🗑️ 已清空我的图片库', 'self', true);
+                saveData();
+            });
+        }
+
+        function clearMyPatPanel() {
+            if (myPatPool.length === 0) { alert('我的拍一拍库已经为空'); return; }
+            showConfirmDialog('⚠️ 确定要清空全部我的拍一拍吗？', function() {
+                myPatPool = [];
+                updateAll();
+                addMessage('🗑️ 已清空我的拍一拍', 'self', true);
+                saveData();
+            });
+        }
+
+        function clearOtherPatPanel() {
+            if (otherPatPool.length === 0) { alert('对方拍一拍库已经为空'); return; }
+            showConfirmDialog('⚠️ 确定要清空全部对方拍一拍吗？', function() {
+                otherPatPool = [];
+                updateAll();
+                addMessage('🗑️ 已清空对方拍一拍', 'self', true);
+                saveData();
+            });
+        }
+
+        function clearCardPanel() {
+            if (cardPool.length === 0) { alert('字卡库已经为空'); return; }
+            var cardsCopy = cardPool.map(function(c) { return { text: c.text, category: c.category }; });
+            showConfirmDialog('⚠️ 确定要清空全部字卡吗？', function() {
+                cardPool = [];
+                pushUndo({ type: 'clear_cards', cards: cardsCopy });
+                updateAll();
+                addMessage('🗑️ 已清空字卡库', 'self', true);
+                saveData();
+            });
+        }
+
+        // =============================================
+        // 字卡导入导出
+        // =============================================
+        function exportCardData() {
+            if (cardPool.length === 0) {
+                alert('📭 字卡库为空，没有可导出的内容');
+                return;
+            }
+            var data = {
+                version: '1.0',
+                exportedAt: new Date().toISOString(),
+                cards: cardPool
+            };
+            var json = JSON.stringify(data, null, 2);
+            var blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            var dateStr = new Date().toISOString().slice(0, 10);
+            a.download = '字卡库_' + dateStr + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            addMessage('✅ 字卡库已导出（共 ' + cardPool.length + ' 张）', 'self', true);
+        }
+
+        function importCardData(file) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    var data = JSON.parse(e.target.result);
+                    var imported = data.cards || data;
+                    if (!Array.isArray(imported) || imported.length === 0) {
+                        alert('❌ 文件格式无效或字卡列表为空');
+                        return;
+                    }
+                    var addedCards = [];
+                    imported.forEach(function(item) {
+                        var text = item.text || item;
+                        var category = item.category || '默认';
+                        if (typeof item === 'string') {
+                            text = item;
+                            category = '默认';
+                        }
+                        var exists = cardPool.some(function(c) { return c.text === text; });
+                        if (!exists) {
+                            cardPool.push({ text: text, category: category });
+                            addedCards.push({ text: text, category: category });
+                        }
+                    });
+                    if (addedCards.length === 0) {
+                        alert('所有字卡已存在，没有新增');
+                    } else {
+                        pushUndo({ type: 'import_cards', cards: addedCards });
+                        addMessage('✅ 成功导入 ' + addedCards.length + ' 张字卡（共 ' + cardPool.length + ' 张）', 'self', true);
+                        updateAll();
+                        saveData();
+                    }
+                } catch (err) {
+                    alert('❌ 导入失败，文件格式不正确：' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // =============================================
+        // 分类管理
+        // =============================================
+        function renderCategoryManage() {
+            categoryManageGrid.innerHTML = '';
+            var categories = {};
+            cardPool.forEach(function(card) {
+                var cat = card.category || '默认';
+                if (!categories[cat]) categories[cat] = 0;
+                categories[cat]++;
+            });
+            var catList = Object.keys(categories).sort();
+            if (catList.length === 0) {
+                categoryManageGrid.innerHTML = '<div class="category-manage-empty">📭 暂无分类</div>';
+                return;
+            }
+            catList.forEach(function(cat) {
+                var div = document.createElement('div');
+                div.className = 'cat-item';
+                var nameSpan = document.createElement('span');
+                nameSpan.className = 'cat-name';
+                nameSpan.textContent = cat + '（' + categories[cat] + '张）';
+                var actions = document.createElement('div');
+                actions.className = 'cat-actions';
+                var renameBtn = document.createElement('button');
+                renameBtn.textContent = '✏️';
+                renameBtn.addEventListener('click', function() {
+                    var newName = prompt('重命名「' + cat + '」为：', cat);
+                    if (newName && newName.trim() !== '' && newName.trim() !== cat) {
+                        var newCat = newName.trim();
+                        cardPool.forEach(function(card) {
+                            if ((card.category || '默认') === cat) {
+                                card.category = newCat;
+                            }
+                        });
+                        updateAll();
+                        renderCategoryManage();
+                        addMessage('✅ 分类「' + cat + '」已重命名为「' + newCat + '」', 'self', true);
+                        saveData();
+                    }
+                });
+                var delBtn = document.createElement('button');
+                delBtn.className = 'del-btn';
+                delBtn.textContent = '✕';
+                delBtn.addEventListener('click', function() {
+                    if (categories[cat] > 0) {
+                        showConfirmDialog('分类「' + cat + '」下有 ' + categories[cat] + ' 张字卡，确定要删除该分类吗？（字卡将移至「默认」分类）', function() {
+                            cardPool.forEach(function(card) {
+                                if ((card.category || '默认') === cat) {
+                                    card.category = '默认';
+                                }
+                            });
+                            updateAll();
+                            renderCategoryManage();
+                            addMessage('🗑️ 已删除分类「' + cat + '」，字卡移至「默认」', 'self', true);
+                            saveData();
+                        });
+                    } else {
+                        addMessage('📭 该分类下没有字卡', 'self', true);
+                    }
+                });
+                actions.appendChild(renameBtn);
+                actions.appendChild(delBtn);
+                div.appendChild(nameSpan);
+                div.appendChild(actions);
+                categoryManageGrid.appendChild(div);
+            });
+        }
+
+        function addCategoryFromManage() {
+            var name = newCategoryInput.value.trim();
+            if (!name) {
+                alert('请输入分类名称');
+                return;
+            }
+            var exists = cardPool.some(function(c) { return (c.category || '默认') === name; });
+            if (exists) {
+                alert('分类「' + name + '」已存在');
+                return;
+            }
+            cardPool.push({ text: '📂 新分类「' + name + '」的示例字卡', category: name });
+            newCategoryInput.value = '';
+            updateAll();
+            renderCategoryManage();
+            addMessage('✅ 已创建分类「' + name + '」', 'self', true);
+            saveData();
+        }
+
+        // =============================================
+        // 图片上传
+        // =============================================
+        function renderImagePreview() {
+            imagePreviewRow.innerHTML = '';
+            var allImages = myImages.concat(otherImages);
+            allImages.forEach(function(img) {
+                var imgEl = document.createElement('img');
+                imgEl.className = 'preview-item';
+                imgEl.src = img.dataUrl;
+                imagePreviewRow.appendChild(imgEl);
+            });
+            if (allImages.length === 0) {
+                imagePreviewRow.innerHTML = '<span style="color:#b0a090;font-size:12px;">暂无图片</span>';
+            }
+        }
+
+        function handleImageSelect(files, target) {
+            var fileArray = Array.from(files);
+            var added = 0;
+            fileArray.forEach(function(file) {
+                if (!file.type.startsWith('image/')) return;
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var dataUrl = e.target.result;
+                    var targetList = target === 'my' ? myImages : otherImages;
+                    var exists = targetList.some(function(img) {
+                        return img.dataUrl.substring(0, 100) === dataUrl.substring(0, 100);
+                    });
+                    if (!exists) {
+                        targetList.push({ id: generateId(), dataUrl: dataUrl });
+                        added++;
+                    }
+                    if (added > 0) {
+                        updateAll();
+                        renderImagePreview();
+                        addMessage('✅ 成功添加 ' + added + ' 张图片到「' + (target === 'my' ? '我的' : '对方') + '」', 'self', true);
+                        saveData();
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+            if (fileArray.length === 0) alert('请选择图片文件');
+        }
+
+        // =============================================
+        // 信箱
+        // =============================================
+        function renderMail() {
+            mailList.innerHTML = '';
+            if (mailMessages.length === 0) {
+                mailList.innerHTML = '<div class="mail-empty">📭 还没有传讯～</div>';
+                return;
+            }
+            var reversed = mailMessages.slice().reverse();
+            for (var i = 0; i < reversed.length; i++) {
+                var item = reversed[i];
+                var div = document.createElement('div');
+                div.className = 'mail-item';
+                div.innerHTML = '<span class="mail-sender">' + item.sender + '</span> ' + item.content + '<span class="mail-time">📨 ' + item.time + '</span>';
+                mailList.appendChild(div);
+            }
+        }
+
+        function clearChat() {
+            var children = chatArea.children;
+            var toRemove = [];
+            for (var i = 0; i < children.length; i++) {
+                if (!children[i].classList.contains('system') &&
+                    !children[i].classList.contains('status-change') &&
+                    !children[i].classList.contains('pat-message') &&
+                    !children[i].classList.contains('call-message')) {
+                    toRemove.push(children[i]);
+                }
+            }
+            for (var j = 0; j < toRemove.length; j++) {
+                toRemove[j].remove();
+            }
+            chatMessages = [];
+            hideTypingIndicator();
+            saveData();
+        }
+
+        // =============================================
+        // 设置
+        // =============================================
+        function openSetting() {
+            selfNameInput.value = selfName;
+            otherNameInput.value = otherName;
+            minWaitSlider.value = minWait;
+            maxWaitSlider.value = maxWait;
+            minWaitDisplay.textContent = minWait + 's';
+            maxWaitDisplay.textContent = maxWait + 's';
+            timeFormatSelect.value = timeFormat;
+            typingToggle.classList.toggle('on', showTyping);
+            autoSendToggle.classList.toggle('on', autoSendEnabled);
+            autoSendIntervalSlider.value = autoSendInterval;
+            autoSendIntervalDisplay.textContent = autoSendInterval + '分钟';
+            renderStatusManage();
+            renderPatManage();
+            settingOverlay.classList.add('open');
+        }
+
+        function closeSettingPanel() { settingOverlay.classList.remove('open'); }
+
+        function saveSettingPanel() {
+            selfName = selfNameInput.value.trim() || '我';
+            otherName = otherNameInput.value.trim() || '对方';
+            otherNameDisplay.textContent = otherName;
+            minWait = parseFloat(minWaitSlider.value) || 2;
+            maxWait = parseFloat(maxWaitSlider.value) || 6;
+            if (minWait > maxWait) {
+                var tmp = minWait;
+                minWait = maxWait;
+                maxWait = tmp;
+                minWaitSlider.value = minWait;
+                maxWaitSlider.value = maxWait;
+            }
+            minWaitDisplay.textContent = minWait + 's';
+            maxWaitDisplay.textContent = maxWait + 's';
+            timeFormat = timeFormatSelect.value;
+            var newInterval = parseInt(autoSendIntervalSlider.value) || 5;
+            if (newInterval !== autoSendInterval || autoSendEnabled !== autoSendToggle.classList.contains('on')) {
+                autoSendInterval = newInterval;
+                autoSendEnabled = autoSendToggle.classList.contains('on');
+                autoSendIntervalDisplay.textContent = autoSendInterval + '分钟';
+                if (autoSendTimer) {
+                    clearInterval(autoSendTimer);
+                    autoSendTimer = null;
+                }
+                if (autoSendEnabled) {
+                    startAutoSend();
+                }
+            }
+            closeSettingPanel();
+            addMessage('✅ 已更新设置', 'self', true);
+            saveData();
+        }
+
+        // =============================================
+        // 添加字卡
+        // =============================================
+        function openAddCard() { newCardInput.value = ''; updateAll(); addCardOverlay.classList.add('open'); }
+        function closeAddCard() { addCardOverlay.classList.remove('open'); }
+
+        function confirmAddCardFn() {
+            var text = newCardInput.value;
+            if (!text.trim()) { alert('请输入字卡内容'); return; }
+            var lines = text.split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+            if (lines.length === 0) { alert('请输入有效内容'); return; }
+            var added = 0;
+            var addedCards = [];
+            lines.forEach(function(line) {
+                var parts = line.split('|');
+                var cardText = parts[0].trim();
+                var category = parts[1] ? parts[1].trim() : '默认';
+                if (!cardText) return;
+                var exists = cardPool.some(function(c) { return c.text === cardText; });
+                if (!exists) {
+                    cardPool.push({ text: cardText, category: category });
+                    added++;
+                    addedCards.push({ text: cardText, category: category });
+                }
+            });
+            if (added === 0) { alert('所有字卡已存在，没有新增'); }
+            else {
+                pushUndo({ type: 'add_cards', cards: addedCards });
+                addMessage('✅ 成功添加 ' + added + ' 张字卡（共 ' + cardPool.length + ' 张）', 'self', true);
+                updateAll();
+                closeAddCard();
+                saveData();
+            }
+        }
+
+        // =============================================
+        // 弹窗控制
+        // =============================================
+        function openAddImage() { renderImagePreview(); updateAll(); addImageOverlay.classList.add('open'); }
+        function closeAddImage() { addImageOverlay.classList.remove('open'); }
+
+        function openTopEmojiFn() { updateAll(); topEmojiOverlay.classList.add('open'); }
+        function closeTopEmojiFn() { topEmojiOverlay.classList.remove('open'); }
+        function openTopImageFn() { updateAll(); topImageOverlay.classList.add('open'); }
+        function closeTopImageFn() { topImageOverlay.classList.remove('open'); }
+        function openTopCardFn() { updateAll(); topCardOverlay.classList.add('open'); }
+        function closeTopCardFn() { topCardOverlay.classList.remove('open'); }
+        function openTopPatFn() { updateAll(); topPatOverlay.classList.add('open'); }
+        function closeTopPatFn() { topPatOverlay.classList.remove('open'); }
+
+        function openBottomImageFn() { updateAll(); bottomImageOverlay.classList.add('open'); }
+        function closeBottomImageFn() { bottomImageOverlay.classList.remove('open'); }
+        function openBottomPatFn() { updateAll(); bottomPatOverlay.classList.add('open'); }
+        function closeBottomPatFn() { bottomPatOverlay.classList.remove('open'); }
+
+        // =============================================
+        // 状态管理
+        // =============================================
+        function renderStatusManage() {
+            statusManageList.innerHTML = '';
+            if (statusPool.length === 0) {
+                statusManageList.innerHTML = '<div class="status-empty">📭 状态库为空</div>';
+                return;
+            }
+            statusPool.forEach(function(status, idx) {
+                var span = document.createElement('span');
+                span.className = 'status-tag';
+                span.textContent = status;
+                var delBtn = document.createElement('button');
+                delBtn.className = 'del-btn';
+                delBtn.textContent = '✕';
+                delBtn.addEventListener('click', function() {
+                    showConfirmDialog('确定要删除状态「' + status + '」吗？', function() {
+                        statusPool.splice(idx, 1);
+                        renderStatusManage();
+                        if (statusPool.indexOf(currentStatus) === -1) updateStatusDisplay();
+                        saveData();
+                    });
+                });
+                span.appendChild(delBtn);
+                statusManageList.appendChild(span);
+            });
+        }
+
+        function addStatus() {
+            var val = newStatusInput.value.trim();
+            if (!val) { alert('请输入状态内容'); return; }
+            if (statusPool.indexOf(val) !== -1) { alert('该状态已存在'); return; }
+            statusPool.push(val);
+            newStatusInput.value = '';
+            renderStatusManage();
+            saveData();
+        }
+
+        function clearAllStatus() {
+            if (statusPool.length === 0) { alert('状态库已经为空'); return; }
+            showConfirmDialog('⚠️ 确定要清空全部 ' + statusPool.length + ' 个状态吗？', function() {
+                statusPool = ['在线'];
+                renderStatusManage();
+                updateStatusDisplay();
+                addMessage('🗑️ 已清空全部状态', 'self', true);
+                saveData();
+            });
+        }
+
+        // =============================================
+        // 拍一拍管理
+        // =============================================
+        function renderPatManage() {
+            myPatManageList.innerHTML = '';
+            if (myPatPool.length === 0) {
+                myPatManageList.innerHTML = '<div class="pat-empty">📭 暂无</div>';
+            } else {
+                myPatPool.forEach(function(pat, idx) {
+                    var span = document.createElement('span');
+                    span.className = 'pat-tag';
+                    span.textContent = pat;
+                    var delBtn = document.createElement('button');
+                    delBtn.className = 'del-btn';
+                    delBtn.textContent = '✕';
+                    delBtn.addEventListener('click', function() {
+                        showConfirmDialog('确定要删除「' + pat + '」吗？', function() {
+                            myPatPool.splice(idx, 1);
+                            renderPatManage();
+                            updateAll();
+                            saveData();
+                        });
+                    });
+                    span.appendChild(delBtn);
+                    myPatManageList.appendChild(span);
+                });
+            }
+
+            otherPatManageList.innerHTML = '';
+            if (otherPatPool.length === 0) {
+                otherPatManageList.innerHTML = '<div class="pat-empty">📭 暂无</div>';
+            } else {
+                otherPatPool.forEach(function(pat, idx) {
+                    var span = document.createElement('span');
+                    span.className = 'pat-tag';
+                    span.textContent = pat;
+                    var delBtn = document.createElement('button');
+                    delBtn.className = 'del-btn';
+                    delBtn.textContent = '✕';
+                    delBtn.addEventListener('click', function() {
+                        showConfirmDialog('确定要删除「' + pat + '」吗？', function() {
+                            otherPatPool.splice(idx, 1);
+                            renderPatManage();
+                            updateAll();
+                            saveData();
+                        });
+                    });
+                    span.appendChild(delBtn);
+                    otherPatManageList.appendChild(span);
+                });
+            }
+        }
+
+        function addMyPat() {
+            var val = newMyPatInput.value.trim();
+            if (!val) { alert('请输入拍一拍内容'); return; }
+            if (myPatPool.indexOf(val) !== -1) { alert('该内容已存在'); return; }
+            myPatPool.push(val);
+            newMyPatInput.value = '';
+            renderPatManage();
+            updateAll();
+            saveData();
+        }
+
+        function addOtherPat() {
+            var val = newOtherPatInput.value.trim();
+            if (!val) { alert('请输入拍一拍内容'); return; }
+            if (otherPatPool.indexOf(val) !== -1) { alert('该内容已存在'); return; }
+            otherPatPool.push(val);
+            newOtherPatInput.value = '';
+            renderPatManage();
+            updateAll();
+            saveData();
+        }
+
+        function clearAllMyPat() {
+            if (myPatPool.length === 0) { alert('我的拍一拍库已经为空'); return; }
+            showConfirmDialog('⚠️ 确定要清空全部 ' + myPatPool.length + ' 条我的拍一拍吗？', function() {
+                myPatPool = [];
+                renderPatManage();
+                updateAll();
+                addMessage('🗑️ 已清空我的拍一拍', 'self', true);
+                saveData();
+            });
+        }
+
+        function clearAllOtherPat() {
+            if (otherPatPool.length === 0) { alert('对方拍一拍库已经为空'); return; }
+            showConfirmDialog('⚠️ 确定要清空全部 ' + otherPatPool.length + ' 条对方拍一拍吗？', function() {
+                otherPatPool = [];
+                renderPatManage();
+                updateAll();
+                addMessage('🗑️ 已清空对方拍一拍', 'self', true);
+                saveData();
+            });
+        }
+
+        // =============================================
+        // 批量添加拍一拍
+        // =============================================
+        function openBatchPat(target) {
+            batchTarget = target;
+            var title = target === 'my' ? '📥 批量添加我的拍一拍' : '📥 批量添加对方拍一拍';
+            batchPatTitle.textContent = title;
+            batchPatInput.value = '';
+            batchPatOverlay.classList.add('open');
+        }
+
+        function closeBatchPat() {
+            batchPatOverlay.classList.remove('open');
+        }
+
+        function confirmBatchPatFn() {
+            var text = batchPatInput.value;
+            if (!text.trim()) { alert('请输入内容'); return; }
+            var lines = text.split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+            if (lines.length === 0) { alert('请输入有效内容'); return; }
+            var targetList = batchTarget === 'my' ? myPatPool : otherPatPool;
+            var added = 0;
+            lines.forEach(function(line) {
+                if (targetList.indexOf(line) === -1) {
+                    targetList.push(line);
+                    added++;
+                }
+            });
+            if (added === 0) { alert('所有内容已存在，没有新增'); }
+            else {
+                addMessage('✅ 成功添加 ' + added + ' 条拍一拍', 'self', true);
+                renderPatManage();
+                updateAll();
+                closeBatchPat();
+                saveData();
+            }
+        }
+
+        // =============================================
+        // 事件绑定
+        // =============================================
+        sendBtn.addEventListener('click', sendMessage);
+        msgInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
+        });
+
+        randomBtn.addEventListener('click', sendRandomCards);
+
+        mailBtn.addEventListener('click', function() { renderMail(); mailOverlay.classList.add('open'); });
+        closeMail.addEventListener('click', function() { mailOverlay.classList.remove('open'); });
+        mailOverlay.addEventListener('click', function(e) { if (e.target === mailOverlay) mailOverlay.classList.remove('open'); });
+
+        clearBtn.addEventListener('click', function() {
+            if (confirm('清空聊天记录？（信箱保留）')) clearChat();
+        });
+
+        settingBtn.addEventListener('click', openSetting);
+        closeSetting.addEventListener('click', closeSettingPanel);
+        settingOverlay.addEventListener('click', function(e) { if (e.target === settingOverlay) closeSettingPanel(); });
+        saveSetting.addEventListener('click', saveSettingPanel);
+
+        undoBtn.addEventListener('click', undoLastAction);
+        exportBtn.addEventListener('click', exportChatHistory);
+
+        topEmojiBtn.addEventListener('click', openTopEmojiFn);
+        closeTopEmoji.addEventListener('click', closeTopEmojiFn);
+        topEmojiOverlay.addEventListener('click', function(e) { if (e.target === topEmojiOverlay) closeTopEmojiFn(); });
+
+        topImageBtn.addEventListener('click', openTopImageFn);
+        closeTopImage.addEventListener('click', closeTopImageFn);
+        topImageOverlay.addEventListener('click', function(e) { if (e.target === topImageOverlay) closeTopImageFn(); });
+
+        topCardBtn.addEventListener('click', openTopCardFn);
+        closeTopCard.addEventListener('click', closeTopCardFn);
+        topCardOverlay.addEventListener('click', function(e) { if (e.target === topCardOverlay) closeTopCardFn(); });
+
+        callBtn.addEventListener('click', startCall);
+        hangupBtn.addEventListener('click', endCall);
+        minimizeCallBtn.addEventListener('click', minimizeCall);
+        floatingHangup.addEventListener('click', endCall);
+
+        avatarClick.addEventListener('click', function() {
+            avatarFileInput.click();
+        });
+        avatarFileInput.addEventListener('change', function(e) {
+            if (this.files && this.files.length > 0) {
+                handleAvatarUpload(this.files[0]);
+                this.value = '';
+            }
+        });
+
+        bottomImageBtn.addEventListener('click', openBottomImageFn);
+        closeBottomImage.addEventListener('click', closeBottomImageFn);
+        bottomImageOverlay.addEventListener('click', function(e) { if (e.target === bottomImageOverlay) closeBottomImageFn(); });
+
+        bottomPatBtn.addEventListener('click', openBottomPatFn);
+        closeBottomPat.addEventListener('click', closeBottomPatFn);
+        bottomPatOverlay.addEventListener('click', function(e) { if (e.target === bottomPatOverlay) closeBottomPatFn(); });
+
+        letterBtn.addEventListener('click', openLetterOverlay);
+        closeLetter.addEventListener('click', closeLetterOverlay);
+        cancelLetter.addEventListener('click', closeLetterOverlay);
+        sendLetterBtn.addEventListener('click', sendLetter);
+
+        addCardBtn.addEventListener('click', openAddCard);
+        cancelAddCard.addEventListener('click', closeAddCard);
+        confirmAddCard.addEventListener('click', confirmAddCardFn);
+        addCardOverlay.addEventListener('click', function(e) { if (e.target === addCardOverlay) closeAddCard(); });
+
+        addImageBtn.addEventListener('click', openAddImage);
+        cancelAddImage.addEventListener('click', closeAddImage);
+        addImageOverlay.addEventListener('click', function(e) { if (e.target === addImageOverlay) closeAddImage(); });
+
+        selectImageForMy.addEventListener('click', function() { imageUploadTarget = 'my'; imageFileInput.click(); });
+        selectImageForOther.addEventListener('click', function() { imageUploadTarget = 'other'; imageFileInput.click(); });
+        imageFileInput.addEventListener('change', function(e) {
+            if (this.files && this.files.length > 0) {
+                handleImageSelect(this.files, imageUploadTarget);
+                this.value = '';
+            }
+        });
+
+        exportCardBtn.addEventListener('click', exportCardData);
+        importCardBtn.addEventListener('click', function() { importCardInput.click(); });
+        importCardInput.addEventListener('change', function(e) {
+            if (this.files && this.files.length > 0) {
+                importCardData(this.files[0]);
+                this.value = '';
+            }
+        });
+
+        categoryManageBtn.addEventListener('click', function() {
+            renderCategoryManage();
+            categoryManageOverlay.classList.add('open');
+        });
+        closeCategoryManage.addEventListener('click', function() {
+            categoryManageOverlay.classList.remove('open');
+        });
+        categoryManageOverlay.addEventListener('click', function(e) {
+            if (e.target === categoryManageOverlay) categoryManageOverlay.classList.remove('open');
+        });
+        addCategoryBtn.addEventListener('click', addCategoryFromManage);
+        newCategoryInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); addCategoryFromManage(); }
+        });
+
+        document.getElementById('deleteOtherEmojiSelected').addEventListener('click', function() { deleteSelectedItems('otherEmoji'); });
+        document.getElementById('deleteOtherImageSelected').addEventListener('click', function() { deleteSelectedItems('otherImage'); });
+        document.getElementById('deleteCardSelected').addEventListener('click', function() { deleteSelectedItems('card'); });
+        document.getElementById('deleteMyImageSelected').addEventListener('click', function() { deleteSelectedItems('myImage'); });
+        document.getElementById('deleteMyPatSelected').addEventListener('click', function() { deleteSelectedItems('myPat'); });
+        document.getElementById('deleteOtherPatSelected').addEventListener('click', function() { deleteSelectedItems('otherPat'); });
+
+        document.getElementById('clearOtherEmojiBtn').addEventListener('click', clearOtherEmoji);
+        document.getElementById('clearOtherImageBtn').addEventListener('click', clearOtherImage);
+        document.getElementById('clearCardPanelBtn').addEventListener('click', clearCardPanel);
+        document.getElementById('clearMyImageBtn').addEventListener('click', clearMyImage);
+        document.getElementById('clearMyPatPanelBtn').addEventListener('click', clearMyPatPanel);
+        document.getElementById('clearOtherPatPanelBtn').addEventListener('click', clearOtherPatPanel);
+
+        addStatusBtn.addEventListener('click', addStatus);
+        newStatusInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addStatus(); } });
+        clearAllStatusBtn.addEventListener('click', clearAllStatus);
+
+        addMyPatBtn.addEventListener('click', addMyPat);
+        newMyPatInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addMyPat(); } });
+        addOtherPatBtn.addEventListener('click', addOtherPat);
+        newOtherPatInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addOtherPat(); } });
+        clearAllMyPatBtn.addEventListener('click', clearAllMyPat);
+        clearAllOtherPatBtn.addEventListener('click', clearAllOtherPat);
+
+        batchAddMyPatBtn.addEventListener('click', function() { openBatchPat('my'); });
+        batchAddOtherPatBtn.addEventListener('click', function() { openBatchPat('other'); });
+        cancelBatchPat.addEventListener('click', closeBatchPat);
+        confirmBatchPat.addEventListener('click', confirmBatchPatFn);
+        batchPatOverlay.addEventListener('click', function(e) { if (e.target === batchPatOverlay) closeBatchPat(); });
+
+        autoSendToggle.addEventListener('click', function() {
+            this.classList.toggle('on');
+            var enabled = this.classList.contains('on');
+            if (enabled) {
+                startAutoSend();
+            } else {
+                if (autoSendTimer) {
+                    clearInterval(autoSendTimer);
+                    autoSendTimer = null;
+                }
+            }
+            saveData();
+        });
+
+        autoSendIntervalSlider.addEventListener('input', function() {
+            autoSendIntervalDisplay.textContent = parseFloat(this.value) + '分钟';
+        });
+
+        typingToggle.addEventListener('click', function() {
+            showTyping = !showTyping;
+            this.classList.toggle('on', showTyping);
+            saveData();
+        });
+
+        minWaitSlider.addEventListener('input', function() {
+            minWaitDisplay.textContent = parseFloat(this.value) + 's';
+        });
+        maxWaitSlider.addEventListener('input', function() {
+            maxWaitDisplay.textContent = parseFloat(this.value) + 's';
+        });
+
+        cancelQuote.addEventListener('click', function() {
+            quoteTarget = null;
+            quoteReplyBar.classList.remove('show');
+        });
+
+        setupFloatingDrag();
+
+        if ('Notification' in window && Notification.permission === 'default') {
+            setTimeout(function() {
+                Notification.requestPermission();
+            }, 3000);
+        }
+
+        setTimeout(function() {
+            showSystemNotification('🌙 字卡传讯', '后台通知已就绪 ✅');
+        }, 5000);
+
+        // =============================================
+        // 初始化 - 恢复聊天记录（包括对方消息）
+        // =============================================
+        otherNameDisplay.textContent = otherName;
+        statusText.textContent = currentStatus || '在线';
+
+        if (avatarDataUrl) {
+            var avatarEl = document.querySelector('.top-bar .top-left .avatar');
+            avatarEl.innerHTML = '<img src="' + avatarDataUrl + '">';
+        }
+
+        // 恢复聊天消息（包括对方发的）
+        if (hasSavedData && chatMessages && chatMessages.length > 0) {
+            chatMessages.forEach(function(msg) {
+                var div = document.createElement('div');
+                div.className = 'msg';
+                if (msg.sender === 'self') div.classList.add('self');
+                div.dataset.msgId = msg.id;
+
+                var senderDisplay = msg.sender === 'self' ? selfName : otherName;
+                var timeStr = msg.time ? msg.time.split(' ')[1] || getTimeStr() : getTimeStr();
+                var statusText = msg.read ? '已读' : '未读';
+                var statusClass = msg.read ? 'read' : 'unread';
+                var statusHtml = '<span class="read-status ' + statusClass + '">' + statusText + '</span>';
+                var contentHtml = msg.content || '';
+                var quoteHtml = msg.quote ? '<div class="quote-block"><span class="quote-sender">' + msg.sender + '：</span>' + msg.quote + '</div>' : '';
+                // 如果是图片消息
+                if (msg.imageDataUrl) {
+                    contentHtml = '<img src="' + msg.imageDataUrl + '" class="msg-img">' + (msg.content ? '<br>' + msg.content : '');
+                }
+                div.innerHTML = statusHtml + '<span class="sender">' + senderDisplay + '</span>' + quoteHtml + contentHtml + '<span class="time">' + timeStr + '</span>';
+                if (!div.classList.contains('system')) {
+                    var senderName = msg.sender === 'self' ? selfName : otherName;
+                    var msgContent = msg.content || '';
+                    setupQuoteButton(div, senderName, msgContent);
+                }
+                chatArea.appendChild(div);
+            });
+            chatArea.scrollTop = chatArea.scrollHeight;
+            renderMail();
+        } else if (!hasSavedData) {
+            // 首次使用显示欢迎消息
+            setTimeout(function() {
+                addMessage('🌙 欢迎来到字卡传讯', 'self', true);
+                setTimeout(function() {
+                    addMessage('💬 输入你想说的话，发送', 'self', true);
+                    setTimeout(function() {
+                        addMessage('📞 点击顶部「📞」可拨打电话', 'self', true);
+                        setTimeout(function() {
+                            addMessage('✉️ 点击「写信」寄信，对方24小时后回复', 'self', true);
+                            setTimeout(function() {
+                                addMessage('💡 单击消息可引用回复', 'self', true);
+                            }, 500);
+                        }, 500);
+                    }, 500);
+                }, 500);
+            }, 300);
+        }
+
+        updateAll();
+        renderStatusManage();
+        renderPatManage();
+        updateUndoBtn();
+
+        if (autoSendEnabled) {
+            startAutoSend();
+        }
+
+        startIncomingCallCheck();
+    })();
+</script>
+</body>
+</html>
